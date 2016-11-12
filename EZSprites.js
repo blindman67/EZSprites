@@ -57,6 +57,7 @@ ezSprite properties
         setWorldLocal(x,y,scaleX,scaleY,rotation)     
         setLocal(x,y,scaleX,scaleY,rotation)
         local()
+        setDefaults()
     world
         setTransform(originX,originY,scaleX,scaleY)
         getTransform(returnTransform)
@@ -105,11 +106,111 @@ Set up the context
     
 
 
+ezSprite properties
+    resetAll()
+    sprites
+        draw(image,index,x,y,scale,rotate,alpha);
+        drawCenterScaled(image,index,x,y,centerX,centerY,scaleX,scaleY,rotate,alpha)
+        drawWorld(image,index,x,y,scale,rotate,alpha)
+        drawWorldCenterScaled(image,index,x,y,centerX,centerY,scaleX,scaleY,rotate,alpha)
+        drawLocal(image,index,x,y,scale,rotate,alpha)
+        drawLocalCenterScaled(image,index,x,y,centerX,centerY,scaleX,scaleY,rotate,alpha)
+    images
+        draw(image,x,y,scale,rotate,alpha)
+        drawCenterScaled(image,x,y,centerX,centerY,scaleX,scaleY,rotate,alpha)
+        drawWorld(image,x,y,scale,rotate,alpha)
+        drawWorldCenterScaled(image,x,y,centerX,centerY,scaleX,scaleY,rotate,alpha)
+        drawLocal(image,x,y,scale,rotate,alpha)
+        drawLocalCenterScaled(image,x,y,centerX,centerY,scaleX,scaleY,rotate,alpha)
+    background
+        stretch(image)
+        fit(image)
+        fill(image)
+    FX
+        setCompMode(name)
+        pushCompMode(name)
+        popCompMode()
+        getCompMode()
+        normal()
+        lighter()
+        multiply()
+        screen()
+        colorDodge()
+        colorBurn()
+        hardLight()
+        softLight()
+        overlay()
+        difference()
+        exclution()
+        hue()
+        saturation()
+        color()
+        luminosity()
+        sourceAtop()
+        sourceIn()
+        sourceOut()
+        destinationOver()
+        destinationAtop()
+        destinationIn()
+        destinationOut()
+        copy()
+        xor()
+    context
+        setCtx(context);
+        getCtx();
+        pushCtx(context)
+        popCtx()
+        setWorldLocal(x,y,scaleX,scaleY,rotation)     
+        setLocal(x,y,scaleX,scaleY,rotation)
+        local()
+        setDefaults()
+        
+    world  
+        Use to set world coordinates
+        
+        setTransform(originX,originY,scaleX,scaleY)
+            Set the current world coordinates
+            
+        getTransform(returnTransform)
+            Get the current world coordinates
+            
+        pushTransform(originX,originY,scaleX,scaleY)
+            Push current world coordinates onto the stack and set a new one. Note you must match this with a pop
+            
+        popTransform()
+            Pop a previously saved world coordinates from the stack
+            
+    namedCompModes // list of named composite operations and the associated context string
+        normal
+        lighter
+        multiply
+        screen
+        colorDodge
+        colorBurn
+        hardLight
+        softLight
+        overlay
+        difference
+        exclution
+        hue
+        saturation
+        color
+        luminosity
+        sourceAtop
+        sourceIn
+        sourceOut
+        destinationOver
+        destinationAtop
+        destinationIn
+        destinationOut
+        copy
+        xor
+
 
 
 
 ======================================================================================================================*/
-var ezSprites = (function(){
+var EZSprites = (function(){
     var ctx;
     var ctxStack = [null,null,null,null,null,null,null,null,null];
     var ctxStackTop = 0;
@@ -178,6 +279,108 @@ var ezSprites = (function(){
 
     var compModeStack = [];
     var compModeStackTop = 0;
+    
+    
+    // return the extent of the fill
+    var floodFillExtentAll = function (x, y, w, h, data, extent) {
+
+        var stack = [];
+        var lookLeft = false;
+        var lookRight = false;
+        var sp = 0;
+        var minx = w;
+        var maxx = 0;
+        var miny= h;
+        var maxy = 0;
+
+        var checkColour = function(x,y){
+            if( x<0 || y < 0 || y >=h || x >= w){
+                return false;
+            }
+            var ind = y * w + x;
+            if( data[ind] !== 0 ){
+                return true;
+            }
+            return false;
+        }
+        var setPixel = function(x,y){
+            minx = Math.min(x,minx);
+            maxx = Math.max(x,maxx);
+            miny = Math.min(y,miny);
+            maxy = Math.max(y,maxy);
+            var ind = y * w + x;
+            data[ind] = 0
+        }
+        stack.push([x,y]);                
+            
+        while (stack.length) {
+            var pos = stack.pop();
+            x = pos[0];
+            y = pos[1];
+            while (checkColour(x,y-1)) {
+                y -= 1;
+            }
+            if(!checkColour(x-1,y) && checkColour(x-1,y-1)){
+                stack.push([x-1,y-1]);
+            }
+            if(!checkColour(x+1,y) && checkColour(x+1,y-1)){
+                stack.push([x+1,y-1]);
+            }
+            lookLeft = false;
+            lookRight = false;
+            while (checkColour(x,y)) {
+                setPixel(x,y);
+                if (checkColour(x - 1,y)) {
+                    if (!lookLeft) {
+                        stack.push([x - 1, y]);
+                        lookLeft = true;
+                    }
+                } else 
+                if (lookLeft) {
+                    lookLeft = false;
+                }
+                if (checkColour(x+1,y)) {
+                    if (!lookRight) {
+                        stack.push([x + 1, y]);
+                        lookRight = true;
+                    }
+                } else 
+                if (lookRight) {
+                    lookRight = false;
+                }
+                y += 1;
+            }
+            // check down left 
+            if(checkColour(x-1,y) && !lookLeft){
+                stack.push([x-1,y]);
+            }
+            if(checkColour(x+1,y) && !lookRight){
+                stack.push([x+1,y]);
+            }
+        }
+        if(extent === undefined){
+            extent = {};
+            extent.minx = minx;
+            extent.miny = miny;
+            extent.maxx = maxx;
+            extent.maxy = maxy;
+        }else{
+            if(extent.minx === null){
+                extent.minx = minx;
+                extent.miny = miny;
+                extent.maxx = maxx;
+                extent.maxy = maxy;            
+            }else{
+                extent.minx = Math.min(minx, extent.minx);
+                extent.miny = Math.min(miny, extent.miny);
+                extent.maxx = Math.max(maxx, extent.maxx);
+                extent.maxy = Math.max(maxy, extent.maxy);
+            }
+        }
+        return extent;
+    }    
+    
+    
     var FX = {
         setCompMode : function(name){
             ctx.globalCompositeOperation = compModes[name];
@@ -194,7 +397,7 @@ var ezSprites = (function(){
         },
         getCompMode : function(){
             return ctx.globalCompositeOperation;
-        }
+        },
         normal : function(){ ctx.globalCompositeOperation = "source-over"; },
         sourceOver : function(){ ctx.globalCompositeOperation = "source-over"; },
         lighter : function(){ ctx.globalCompositeOperation = "lighter"; },
@@ -246,7 +449,16 @@ var ezSprites = (function(){
                 h = ctx.canvas.height;
             }
         },
+        setDefaults : function(){
+            ctx.setTransform(1,0,0,1,0,0);
+            ctx.globalAlpha = 1;
+            FX.normal();
+        },
         setWorldLocal : function(x,y,scaleX,scaleY,rotation){                
+            if(rotation === undefined){  // if just one scale passed
+                rotation = scaleY;
+                scaleY = scaleX;
+            }
             local.x = x;
             local.y = y;
             local.scaleX = scaleX;
@@ -258,6 +470,10 @@ var ezSprites = (function(){
             ctx.rotate(rotation);                
         },
         setLocal : function(x,y,scaleX,scaleY,rotation){
+            if(rotation === undefined){  // if just one scale passed
+                rotation = scaleY;
+                scaleY = scaleX;
+            }
             local.x = x;
             local.y = y;
             local.scaleX = scaleX;
@@ -377,7 +593,7 @@ var ezSprites = (function(){
             ctx.globalAlpha = alpha;
             ctx.drawImage(image,-image.width/2,-image.height/2);
         },        
-        drawLocalCenterScaled : function(image,x,y,centerX,centerY,scaleX,scaleY,rotate,alpha){
+        drawLocalCenterScaled : function(image,x,y,centerX,centerY,scaleX,scaleY,rotation,alpha){
             ctx.transform(scaleX,0,0,scaleY,x,y);
             ctx.rotate(rotation);
             ctx.globalAlpha = alpha;
@@ -438,7 +654,7 @@ var ezSprites = (function(){
             ctx.globalAlpha = alpha;
             ctx.drawImage(image,spr.x,spr.y,sw,sh,-sw/2,-sh/2,sw,sh);
         },        
-        drawLocalCenterScaled : function(image,index,x,y,centerX,centerY,scaleX,scaleY,rotate,alpha){
+        drawLocalCenterScaled : function(image,index,x,y,centerX,centerY,scaleX,scaleY,rotation,alpha){
             var sh,sw;
             var spr = image.sprites[index];
             sh = spr.h
@@ -448,6 +664,45 @@ var ezSprites = (function(){
             ctx.globalAlpha = alpha;
             ctx.drawImage(image,spr.x,spr.y,sw,sh,-centerX,-centerY,sw,sh);
         },
+        locateSprites : function(image){
+            var w,h,c,ct,size,imgData,index,extent,sprites,x,y;
+            function findSprite(){
+                while(index < size && imgData[index] === 0){
+                    index ++;
+                }
+                if(index < size){
+                    return true;
+                }
+                return false;
+            }
+            w = image.width;
+            h = image.height;
+            c = document.createElement("canvas");
+            c.width = w;
+            c.height = h;
+            size = w * h;
+            ct = c.getContext("2d");
+            ct.drawImage(image,0,0);
+            imgData = new Uint32Array(ct.getImageData(0,0,w,h).data.buffer);
+            index = 0;
+            extent = {minx:null,maxx:null,miny:null,maxy:null};
+            sprites = [];
+            while(findSprite()){
+                x = index % w;
+                y = Math.floor(index / w);
+                extent.minx = null;
+                floodFillExtentAll(x,y,w,h,imgData,extent);
+                sprites.push({
+                    x : extent.minx,
+                    y : extent.miny,
+                    w : extent.maxx - extent.minx + 1,
+                    h : extent.maxy - extent.miny + 1,
+                });
+                    
+            }
+            image.sprites = sprites;
+            return sprites.length;
+        }
     }
     var API = {
         resetAll : resetAll,
