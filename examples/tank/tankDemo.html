@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html id="topDoc">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=ISO-8859-8">
+        <title>QuickRun</title>
+        <meta name="keywords" content="sprites, rendering 2D, javascript, game design, Mark Spronck" />
+        <meta name="description" content="EZSprites.js a simple fast sprite rendering utility fot the 2D canvas API" />
+        <meta name="author" content="Mark Spronck" />
+        <script src = "../../EZSprites.js"></script>
+        <script src = "../mouseCanvas.js"></script>
+    </head>
+    <body style="background:#44AA11;" id="doc">
+    
+    
+    
+    <script>
+        var tankSpriteList = [{
+                "x" : 117,
+                "y" : 0,
+                "w" : 45,
+                "h" : 109
+            }, {
+                "x" : 193,
+                "y" : 1,
+                "w" : 45,
+                "h" : 109
+            }, {
+                "x" : 272,
+                "y" : 6,
+                "w" : 85,
+                "h" : 94
+            }, {
+                "x" : 0,
+                "y" : 8,
+                "w" : 85,
+                "h" : 98
+            }, {
+                "x" : 409,
+                "y" : 34,
+                "w" : 83,
+                "h" : 55
+            }, {
+                "x" : 272,
+                "y" : 101,
+                "w" : 22,
+                "h" : 4
+            }, {
+                "x" : 335,
+                "y" : 101,
+                "w" : 22,
+                "h" : 4
+            }
+        ];
+    
+        mouseCanvas.start();
+        var ctx = mouseCanvas.ctx;
+        var canvas = mouseCanvas.canvas;
+        var mouse = mouseCanvas.mouse;
+        var w = canvas.width;
+        var h = canvas.height;
+        var cw = w / 2;  // center 
+        var ch = h / 2;
+        
+        
+        var ezs = EZSprites.sprites;
+        function drawTank(tank){
+            var t = tank;
+            var r = tank.turret;
+            EZSprites.sprites.draw(spriteSheet, 3, t.x + 5, t.y + 5, t.scale, t.dir, 1); // draw shadow
+            EZSprites.sprites.draw(spriteSheet, 2, t.x, t.y, t.scale, t.dir, 1);         // draw base
+            EZSprites.context.setLocal(t.x + 5, t.y + 5, t.scale, t.dir);     // set local space to the tank base shadow
+            EZSprites.sprites.drawLocalCenterScaled(                          // draw the turret shadow
+                spriteSheet, 0,
+                r.x, r.y,
+                r.cx, r.cy,
+                t.scale, t.scale, r.dir, 1
+            );
+            EZSprites.context.setLocal(t.x, t.y, t.scale, t.dir); // set local space to the tank base             
+            EZSprites.sprites.drawLocalCenterScaled(              // draw the turret in the rotated scaled translated 
+                spriteSheet, 1,                                   // base coordinates x is across the tank, and y down
+                r.x, r.y,
+                r.cx, r.cy,
+                t.scale, t.scale, r.dir, 1
+            );
+            if(t.shoot > 0){   // if shooting
+                t.shoot -= 1;
+                if(t.shoot <= 10){
+                    var scale = t.shoot / 10;
+                    EZSprites.FX.fire();            // set the fire FX
+                    EZSprites.sprites.drawLocal(    // draw the flames in the turret coords
+                        spriteSheet, 4,
+                        0,-r.cy - r.flameSize*scale,
+                        t.scale * scale,0, 1
+                    );
+                    EZSprites.FX.normal();
+                }
+            }
+    
+        
+        
+        }
+
+        var tanks = [];
+        function createTank(x,y){
+            return {
+                x : x,
+                y : y,
+                scale : 1,
+                dir : 0,
+                shoot : 0,
+                turn : (Math.random() * 0.02 + 0.005) * (Math.random() < 0.5 ? -1 : 1),
+                turret : {
+                    x : 0,
+                    y : 18,
+                    cx : 21,
+                    cy : 80,
+                    dir : 1,
+                    flameSize : spriteSheet.sprites[4].h/2
+                }
+            }
+        }
+
+
+        // main update function
+        function renderTanks(){
+            ctx.setTransform(1,0,0,1,0,0); // reset transform
+            ctx.globalAlpha = 1;           // reset alpha
+            ctx.clearRect(0,0,w,h);
+            if(spriteSheet.sprites){
+                var shoot = false;
+                if(mouse.buttonRaw & 1){
+                    tanks.push(createTank(mouse.x,mouse.y));
+                    tanks[tanks.length-1].dir = Math.random() * Math.PI * 2;
+                    mouse.buttonRaw = 0;
+                    shoot = true;
+                }
+                for(var i = 0; i < tanks.length; i ++){
+                    var t = tanks[i];
+                    t.dir += t.turn;      
+                    if(shoot && t.shoot <= 0){
+                        t.shoot = 11 + Math.random() * 20;
+                    }
+                    t.turret.dir = Math.atan2(t.y-mouse.y,t.x-mouse.x)-t.dir - Math.PI / 2;
+                    t.x += Math.sin(t.dir);
+                    t.y -= Math.cos(t.dir);
+                    drawTank(t);
+                }
+                EZSprites.context.setDefaults();
+                if(tanks.length < 20){
+                    ctx.fillStyle = "black";
+                    ctx.globalAlpha = 0.5;
+                    ctx.fillText("Click to add a tank!",w / 2 + 8, h * 0.3 + 8);
+                    ctx.fillStyle = "#7F4";
+                    ctx.strokeStyle = "#CF8";
+                    ctx.globalAlpha =1;
+                    ctx.strokeText("Click to add a tank!",w / 2, h * 0.3);
+                    ctx.fillText("Click to add a tank!",w / 2, h * 0.3);
+                }
+                
+                
+            }            
+        }
+        
+        EZSprites.context.setCtx(ctx);
+        ctx.font = "64px arial black";
+        ctx.textAlign = "center";
+        ctx.textbaseLine = "middle";
+        ctx.lineJoin = "round";
+        ctx.lineWidth = 4;
+
+        var spriteSheet = new Image();
+        spriteSheet.src = "tank.png";
+        spriteSheet.onload = function(){
+            // can only use the next function if you have COREs permission
+            // var count = EZSprites.sprites.locateSprites(this);
+            
+            // Or create a sprite list and attach it.
+            spriteSheet.sprites = tankSpriteList;
+        }        
+        
+        
+        EZSprites.context.setCtx(ctx);        
+        mouseCanvas.addRender(renderTanks);
+    
+    </script>
+    </body>
+</html>
+
+
+
+
