@@ -48,12 +48,12 @@ Draw functions
 
 For EZSprites.sprite and EZSprite.image modules the main draw functions are draw, drawCenterScaled, drawAsLine
 
-Draw
+Drawing
     EZSprites.sprites.draw (image, index, x, y, scale, rotate, alpha)
     EZSprites.images.draw (image,x, y, scale, rotate, alpha)
         Draws sprite or image. If sprite requires index of sprite.
         Arguments
-            image The image to draw. If sprite requiers attached sprite list.
+            image The image to draw. If sprite requires attached sprite list.
             index The sprite index used to lookup the sprite sheet coordinates of the sprite
             x,y The coordinates of the center of the sprite
             scale The uniform scale of the sprite. 1 = no scale  
@@ -69,7 +69,7 @@ Draw
     EZSprites.images.drawCenterScaled (image, x, y, centerX, centerY, scaleX, scaleY, rotate, alpha)    
         Draws sprite or image. If sprite requires index of sprite.
         Arguments
-            image The image to draw. If sprite requiers attached sprite list.
+            image The image to draw. If sprite requires attached sprite list.
             index The sprite index used to lookup the sprite sheet coordinates of the sprite
             x,y The coordinates of the center of the sprite
             centerX, centerY The sprite coordinates of the sprite center (he point that the sprite is rotated about)
@@ -81,7 +81,26 @@ Draw
                 Drawing coordinates in the current world coordinates
             drawLocalCenterScaled
                 Drawing coordinates in the current local coordinates. This is also the current context transform.
-   
+    EZSprites.sprites.drawTiles(image,tileObj,x,y,scale,rotation,alpha)
+    Not available for EZSprites.images
+        Draws sprites as a tile map.
+        Arguments
+            image The image to draw. If sprite requires attached sprite list.
+            tileObj holds details about the tiles to render.
+                map An array of sprite indexes
+                width Number of sprites (tiles) in the x direction
+                height Number of tiles in the y direction
+                xSize Optional. The spacing in pixels between tiles. If not given then the spacing is set to the width of the first tile in map.
+                ySize Optional. The spacing in pixels between tiles. If not given then the spacing is set to the width of the first tile in map.
+            x,y The coordinates of the top left of first (top left) tile
+            scale The uniform scale of the sprite. 1 = no scale 
+            rotate The amount to rotate the sprite around its center in radians. Positive is clockwise
+            alpha The alpha value of the sprite. (WARNING this is not vetted, values out of range <0 or >1 will be ignored.
+        Comes in two variants
+            drawWorldTiles
+                Drawing coordinates in the current world coordinates
+            drawLocalTiles
+                Drawing coordinates in the current local coordinates. This is also the current context transform.
 
 Overview of EZSprites data structure   
 ----
@@ -95,10 +114,13 @@ EZSprite properties
         drawCenterScaled (image, index, x, y, centerX, centerY, scaleX, scaleY, rotate, alpha)
         drawWorldCenterScaled (image, index, x, y, centerX, centerY, scaleX, scaleY, rotate, alpha)
         drawLocalCenterScaled (image, index, x, y, centerX, centerY, scaleX, scaleY, rotate, alpha)
-        drawAsLine (image, index, x1, y1, x2, y2, scaleWidth, alpha);
-        drawWorldAsLine (image, index, x1, y1, x2, y2, scaleWidth, alpha);
-        drawLocalAsLine (image, index, x1, y1, x2, y2, scaleWidth, alpha);
+        drawAsLine (image, index, x1, y1, x2, y2, scaleWidth, alpha)
+        drawWorldAsLine (image, index, x1, y1, x2, y2, scaleWidth, alpha)
+        drawLocalAsLine (image, index, x1, y1, x2, y2, scaleWidth, alpha)
         locateSprites (image)
+        gridSprites ( image , xCount, yCount)
+            Creates an sprite list dividing the image into evenly sized sprites consisting of xCount across and yCount down. If the image width and height can not be evenly divided by the count any extra pixels will not be added to the sprite list. If there is an existing sprite list attached to the image the new sprites will be added to the end of the list.
+         
     images
         draw (image, x, y, scale, rotate, alpha)
         drawWorld (image, x, y, scale, rotate, alpha)
@@ -118,6 +140,8 @@ EZSprite properties
         pushCompMode(name)
         popCompMode()
         getCompMode()
+        filter(on)
+           turn bilinear filtering on and off. If argument on === true bilinear filtering is on. Else it is off
         normal()
         lighter()
         glow()
@@ -383,6 +407,12 @@ var EZSprites = (function(){
         getCompMode : function(){
             return ctx.globalCompositeOperation;
         },
+        filter : function(val){
+            ctx.imageSmoothingEnabled = val === true;
+        },
+        filterMoz : function(val){
+            ctx.mozImageSmoothingEnabled = val === true;
+        },         
         normal : function(){ ctx.globalCompositeOperation = "source-over"; },
         sourceOver : function(){ ctx.globalCompositeOperation = "source-over"; },
         lighter : function(){ ctx.globalCompositeOperation = "lighter"; },
@@ -535,13 +565,13 @@ var EZSprites = (function(){
             ctx.drawImage(image,0,0,ctx.canvas.width,ctx.canvas.height);
         },
         fit : function(image,alpha = 1){
-            var scale = Math.min(image.width / ctx.canvas.width,image.height / ctx.canvas.height);
+            var scale = Math.min(ctx.canvas.width / image.width, ctx.canvas.height / image.height);
             ctx.setTransform(scale,0,0,scale,w/2,h/2);
             ctx.globalAlpha = alpha;
             ctx.drawImage(image,-image.width / 2, -image.height / 2);
         },
         fill : function(image,alpha = 1){
-            var scale = Math.max(image.width / ctx.canvas.width,image.height / ctx.canvas.height);
+            var scale = Math.max(ctx.canvas.width / image.width, ctx.canvas.height / image.height);
             ctx.setTransform(scale,0,0,scale,w/2,h/2);
             ctx.globalAlpha = alpha;
             ctx.drawImage(image,-image.width / 2, -image.height / 2);
@@ -640,6 +670,64 @@ var EZSprites = (function(){
             ctx.rotate(rotation);
             ctx.globalAlpha = alpha;
             ctx.drawImage(image, spr.x, spr.y, sw, sh, -sw / 2, -sh / 2, sw, sh);
+        },
+        drawTiles : function(image,tiles,x,y,scale,rotation,alpha){
+            var index = 0;
+            var map = tiles.map;
+            var mapLen = map.length;
+            var spriteList = image.sprites;
+            _x1 = tiles.xSize === undefined ? spriteList[map[0]].w : tiles.xSize;
+            _y1 = tiles.ySize === undefined ? spriteList[map[0]].h : tiles.ySize;
+            ctx.setTransform(scale, 0, 0, scale, x, y);
+            ctx.rotate(rotation);
+            ctx.globalAlpha = alpha;           
+            for(_y = 0; _y < tiles.height; _y+= 1){
+                for(_x = 0; _x < tiles.width; _x+= 1){
+                    spr = spriteList[map[(index ++)%mapLen]];
+                    sh = spr.h;
+                    sw = spr.w;
+                    ctx.drawImage(image, spr.x, spr.y, sw, sh, _x1 * _x, _y1 * _y, sw, sh);
+                }
+            }
+        },
+        drawLocalTiles : function(image,tiles,x,y,scale,rotation,alpha){
+            var index = 0;
+            var map = tiles.map;
+            var mapLen = map.length;
+            var spriteList = image.sprites;
+            _x1 = tiles.xSize === undefined ? spriteList[map[0]].w : tiles.xSize;
+            _y1 = tiles.ySize === undefined ? spriteList[map[0]].h : tiles.ySize;
+            ctx.transform(scale, 0, 0, scale, x, y);
+            ctx.rotate(rotation);
+            ctx.globalAlpha = alpha;           
+            for(_y = 0; _y < tiles.height; _y+= 1){
+                for(_x = 0; _x < tiles.width; _x+= 1){
+                    spr = spriteList[map[(index ++)%mapLen]];
+                    sh = spr.h;
+                    sw = spr.w;
+                    ctx.drawImage(image, spr.x, spr.y, sw, sh, _x1 * _x, _y1 * _y, sw, sh);
+                }
+            }
+        },
+        drawWorldTiles : function(image,tiles,x,y,scale,rotation,alpha){
+            var index = 0;
+            var map = tiles.map;
+            var mapLen = map.length;
+            var spriteList = image.sprites;
+            _x1 = tiles.xSize === undefined ? spriteList[map[0]].w : tiles.xSize;
+            _y1 = tiles.ySize === undefined ? spriteList[map[0]].h : tiles.ySize;
+            ctx.setTransform(transform.sx, 0, 0, transform.sy, transform.x, transform.y);
+            ctx.transform(scale, 0, 0, scale, x, y);
+            ctx.rotate(rotation);
+            ctx.globalAlpha = alpha;           
+            for(_y = 0; _y < tiles.height; _y+= 1){
+                for(_x = 0; _x < tiles.width; _x+= 1){
+                    spr = spriteList[map[(index ++)%mapLen]];
+                    sh = spr.h;
+                    sw = spr.w;
+                    ctx.drawImage(image, spr.x, spr.y, sw, sh, _x1 * _x, _y1 * _y, sw, sh);
+                }
+            }
         },
         drawCenterScaled : function (image, index, x, y, centerX, centerY, scaleX, scaleY, rotate, alpha) {
             spr = image.sprites[index];
@@ -740,9 +828,48 @@ var EZSprites = (function(){
                     
             }
             image.sprites = sprites;
-            return image
+            return image;
+        },
+        gridSprites : function(image,xCount,yCount){
+            var warn = false;
+            var sprites = image.sprites;
+            if(sprites === undefined){
+                sprites = [];
+            }
+            var xSize = Math.floor(image.width / xCount);
+            var ySize = Math.floor(image.height / yCount);
+            if(xSize * xCount !== image.width){
+                console.warn("EZSprites.sprites.gridSprites Image '"+image.src.substr(0,120)+"' width '"+image.width+"' could not be evenly divided by "+xCount);
+                warn = true;
+            }
+            if(ySize * yCount !== image.height){
+                console.warn("EZSprites.sprites.gridSprites Image '"+image.src.substr(0,120)+"' height '"+image.height+"' could not be evenly divided by "+yCount);
+                warn = true;
+            }
+            if(warn){
+                console.warn("The grid sprites may be missing some pixels.");
+            }
+            for(_y = 0; _y < yCount; _y += 1){
+                for(_x = 0; _x < xCount; _x += 1){
+                    sprites.push({
+                        x : _x * xSize,
+                        y : _y * ySize,
+                        w : xSize,
+                        h : ySize,
+                    });
+                }
+            }
+            image.sprites = sprites;
+            return image;
         }
     }
+    // setup any context specific functionality.
+    
+    if(document.createElement("canvas").getContext("2d").mozImageSmoothingEnabled !== undefined){
+        FX.filter = FX.filterMoz;
+    }
+        
+    
     var API = {
         resetAll : resetAll,
         sprites : sprites,
