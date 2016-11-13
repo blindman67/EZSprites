@@ -1,127 +1,114 @@
 
 /*===================================================================================================================120
-ezSprite properties
-    resetAll()
-    sprites
-        draw(image,index,x,y,scale,rotate,alpha);
-        drawCenterScaled(image,index,x,y,centerX,centerY,scaleX,scaleY,rotate,alpha)
-        drawWorld(image,index,x,y,scale,rotate,alpha)
-        drawWorldCenterScaled(image,index,x,y,centerX,centerY,scaleX,scaleY,rotate,alpha)
-        drawLocal(image,index,x,y,scale,rotate,alpha)
-        drawLocalCenterScaled(image,index,x,y,centerX,centerY,scaleX,scaleY,rotate,alpha)
-    images
-        draw(image,x,y,scale,rotate,alpha)
-        drawCenterScaled(image,x,y,centerX,centerY,scaleX,scaleY,rotate,alpha)
-        drawWorld(image,x,y,scale,rotate,alpha)
-        drawWorldCenterScaled(image,x,y,centerX,centerY,scaleX,scaleY,rotate,alpha)
-        drawLocal(image,x,y,scale,rotate,alpha)
-        drawLocalCenterScaled(image,x,y,centerX,centerY,scaleX,scaleY,rotate,alpha)
-    background
-        stretch(image)
-        fit(image)
-        fill(image)
-    FX
-        setCompMode(name)
-        pushCompMode(name)
-        popCompMode()
-        getCompMode()
-        normal()
-        lighter()
-        multiply()
-        screen()
-        colorDodge()
-        colorBurn()
-        hardLight()
-        softLight()
-        overlay()
-        difference()
-        exclution()
-        hue()
-        saturation()
-        color()
-        luminosity()
-        sourceAtop()
-        sourceIn()
-        sourceOut()
-        destinationOver()
-        destinationAtop()
-        destinationIn()
-        destinationOut()
-        copy()
-        xor()
-    context
-        setCtx(context);
-        getCtx();
-        pushCtx(context)
-        popCtx()
-        setWorldLocal(x,y,scaleX,scaleY,rotation)     
-        setLocal(x,y,scaleX,scaleY,rotation)
-        local()
-        setDefaults()
-    world
-        setTransform(originX,originY,scaleX,scaleY)
-        getTransform(returnTransform)
-        pushTransform(originX,originY,scaleX,scaleY)
-        popTransform()
-    namedCompModes
-        normal
-        lighter
-        multiply
-        screen
-        colorDodge
-        colorBurn
-        hardLight
-        softLight
-        overlay
-        difference
-        exclution
-        hue
-        saturation
-        color
-        luminosity
-        sourceAtop
-        sourceIn
-        sourceOut
-        destinationOver
-        destinationAtop
-        destinationIn
-        destinationOut
-        copy
-        xor
 
-        
-        
 Basic usage. 
+----
 
 You must set up the canvas and context. Load the images and set up the animation loops (if you are animating)
 
 Set up the context
 
-    ezSprites.context.setCtx(context);  // only needed once if you are only using one canvas context        
+    EZSprites.context.setCtx(context);  // only needed once if you are only using one canvas context        
 
     // recommend that you create a shorter reference to the sprite types you wanting to use
-    var draw = ezSprites.image.draw;
+    var draw = EZSprites.images.draw;
     draw(image,x,y,1,0,1); // draws an image centered at x,y with scale 1 and no rotation and alpha = 1
     draw(image,x,y,2,Math.PI/2,1); // draws image centered at x,y scale 2 90 deg clock wise
     
+Helper function 
 
+   EZSprites.sprites.locateSprites (image)
+        Scans the supplied image (spritesheet) and locates all the sprites. A sprite is any continuous set of pixels 
+        that have a non zero alpha value. Sprites should not overlap. 
+        
+        Moat.
+        For the best results you should have a one pixel transparent boarder (moat) around the sprite. This will prevent
+        colour bleeding from neighbouring sprites. Sprites can be butted against the image sides (no boarder required) 
+        only inside edges of sprite need a moat. 
+        
+        If a sprite has a width or height that is not event some draw functions will give a slightly blurred effect. It 
+        is best to ensure that the sprite width and heights are even.
+        
+        If the sprite is discontinuous (some pixels are not touching) they can appear as separate sprites. To connect 
+        sprite pixels you can use a very faint alpha pixel (alpha value = 1 (of 255)) to connect them or designate a 
+        linking/bounding colour. All pixels of this colour will be considered scaffolding and removed from image 
+        
+        > **NOTE** scaffold pixels has not yet been implemented. This features usage may change.
+        
+        > **Note** it is recommended that you use this function to local the sprites during production and then add the sprite list to the image at load time in the release version of your code. This will greatly improve load time and prevent complications that can result if you apply filters or transformations (scale) to the image.
+        
+        Arguments
+            image  The image to scan. Must be from same domain or have COREs clearance.
+            
+        Returns 
+            image  If the image is unmodified then the original is returned. If modified then a new copy is returned
 
-ezSprite properties
+    
+Draw functions
+
+For EZSprites.sprite and EZSprite.image modules the main draw functions are draw, drawCenterScaled, drawAsLine
+
+Draw
+    EZSprites.sprites.draw (image, index, x, y, scale, rotate, alpha)
+    EZSprites.images.draw (image,x, y, scale, rotate, alpha)
+        Draws sprite or image. If sprite requires index of sprite.
+        Arguments
+            image The image to draw. If sprite requiers attached sprite list.
+            index The sprite index used to lookup the sprite sheet coordinates of the sprite
+            x,y The coordinates of the center of the sprite
+            scale The uniform scale of the sprite. 1 = no scale  
+            rotate The amount to rotate the sprite around its center in radians. Positive is clockwise
+            alpha The alpha value of the sprite. (WARNING this is not vetted, values out of range <0 or >1 will be ignored.
+        Comes in two variants
+            drawWorld
+                Drawing coordinates in the current world coordinates
+            drawLocal
+                Drawing coordinates in the current local coordinates. This is also the current context transform.
+                
+    EZSprites.sprites.drawCenterScaled (image, index, x, y, centerX, centerY, scaleX, scaleY, rotate, alpha)    
+    EZSprites.images.drawCenterScaled (image, x, y, centerX, centerY, scaleX, scaleY, rotate, alpha)    
+        Draws sprite or image. If sprite requires index of sprite.
+        Arguments
+            image The image to draw. If sprite requiers attached sprite list.
+            index The sprite index used to lookup the sprite sheet coordinates of the sprite
+            x,y The coordinates of the center of the sprite
+            centerX, centerY The sprite coordinates of the sprite center (he point that the sprite is rotated about)
+            scaleX, scaleY The non uniform scale of the sprite in the sprites x and y local direction. 1 = no scale  
+            rotate The amount to rotate the sprite around its center in radians. Positive is clockwise
+            alpha The alpha value of the sprite. (WARNING this is not vetted, values out of range <0 or >1 will be ignored.
+        Comes in two variants
+            drawWorldCenterScaled
+                Drawing coordinates in the current world coordinates
+            drawLocalCenterScaled
+                Drawing coordinates in the current local coordinates. This is also the current context transform.
+   
+
+Overview of EZSprites data structure   
+----
+
+EZSprite properties
     resetAll()
     sprites
-        draw(image,index,x,y,scale,rotate,alpha);
-        drawCenterScaled(image,index,x,y,centerX,centerY,scaleX,scaleY,rotate,alpha)
-        drawWorld(image,index,x,y,scale,rotate,alpha)
-        drawWorldCenterScaled(image,index,x,y,centerX,centerY,scaleX,scaleY,rotate,alpha)
-        drawLocal(image,index,x,y,scale,rotate,alpha)
-        drawLocalCenterScaled(image,index,x,y,centerX,centerY,scaleX,scaleY,rotate,alpha)
+        draw (image, index, x, y, scale, rotate, alpha);
+        drawWorld (image, index, x, y, scale, rotate, alpha)
+        drawLocal (image, index, x, y, scale, rotate, alpha)
+        drawCenterScaled (image, index, x, y, centerX, centerY, scaleX, scaleY, rotate, alpha)
+        drawWorldCenterScaled (image, index, x, y, centerX, centerY, scaleX, scaleY, rotate, alpha)
+        drawLocalCenterScaled (image, index, x, y, centerX, centerY, scaleX, scaleY, rotate, alpha)
+        drawAsLine (image, index, x1, y1, x2, y2, scaleWidth, alpha);
+        drawWorldAsLine (image, index, x1, y1, x2, y2, scaleWidth, alpha);
+        drawLocalAsLine (image, index, x1, y1, x2, y2, scaleWidth, alpha);
+        locateSprites (image)
     images
-        draw(image,x,y,scale,rotate,alpha)
-        drawCenterScaled(image,x,y,centerX,centerY,scaleX,scaleY,rotate,alpha)
-        drawWorld(image,x,y,scale,rotate,alpha)
-        drawWorldCenterScaled(image,x,y,centerX,centerY,scaleX,scaleY,rotate,alpha)
-        drawLocal(image,x,y,scale,rotate,alpha)
-        drawLocalCenterScaled(image,x,y,centerX,centerY,scaleX,scaleY,rotate,alpha)
+        draw (image, x, y, scale, rotate, alpha)
+        drawWorld (image, x, y, scale, rotate, alpha)
+        drawLocal (image, x, y, scale, rotate, alpha)
+        drawCenterScaled (image, x, y, centerX, centerY, scaleX, scaleY, rotate, alpha)
+        drawWorldCenterScaled (image, x, y, centerX, centerY, scaleX, scaleY, rotate, alpha)
+        drawLocalCenterScaled (image, x, y, centerX, centerY, scaleX, scaleY, rotate, alpha)
+        drawAsLine (image, x1, y1, x2, y2, scaleWidth, alpha)
+        drawWorldAsLine (image, x1, y1, x2, y2, scaleWidth, alpha)
+        drawLocalAsLine (image, x1, y1, x2, y2, scaleWidth, alpha)
     background
         stretch(image)
         fit(image)
@@ -133,6 +120,8 @@ ezSprite properties
         getCompMode()
         normal()
         lighter()
+        glow()
+        fire()
         multiply()
         screen()
         colorDodge()
@@ -183,6 +172,8 @@ ezSprite properties
     namedCompModes // list of named composite operations and the associated context string
         normal
         lighter
+        glow
+        fire        
         multiply
         screen
         colorDodge
@@ -211,10 +202,14 @@ ezSprite properties
 
 ======================================================================================================================*/
 var EZSprites = (function(){
+    "use strict";
     var ctx;
-    var ctxStack = [null,null,null,null,null,null,null,null,null];
+    var ctxStack = [null, null, null, null, null, null, null, null, null];
     var ctxStackTop = 0;
     var w,h;    // width and height
+    var _x, _y, _x1, _y1, _dist;  // work variables
+    var sw, sh; // work vars (sprite width and height)
+    var spr; // work var
     var transform = {
         x : 0,
         y : 0,
@@ -229,14 +224,12 @@ var EZSprites = (function(){
         scaleX : 1,
         scaleY : 1,
         rotate : 0,
-    }
-    
-    
+    }    
     function resetAll(){
         ctxStackTop = 0;
         tStackTop = 0;
         transformStack = [];
-        ctxStack = [null,null,null,null,null,null,null,null,null];
+        ctxStack = [null, null, null, null, null, null, null, null, null];
         ctx = null;
         transform.x = 0;
         transform.y = 0;
@@ -246,13 +239,11 @@ var EZSprites = (function(){
         compModeStackTop = 0;
 
     }
-    
-    
-    // darker // has limited support so not included
-        
-    var compModesNames = {
+    var compModesNames = { // darker // has limited support so not included 
         normal : "source-over",
         lighter : "lighter",
+        glow : "lighter",
+        fire : "lighter",
         multiply : "multiply",
         screen : "screen",
         colorDodge : "color-dodge",
@@ -276,13 +267,9 @@ var EZSprites = (function(){
         copy : "copy",
         xor : "xor",
     }
-
     var compModeStack = [];
     var compModeStackTop = 0;
-    
-    
-    // return the extent of the fill
-    var floodFillExtentAll = function (x, y, w, h, data, extent) {
+    var floodFillExtentAll = function (x, y, w, h, data, extent) { // return the extent of the fill
 
         var stack = [];
         var lookLeft = false;
@@ -378,9 +365,7 @@ var EZSprites = (function(){
             }
         }
         return extent;
-    }    
-    
-    
+    }        
     var FX = {
         setCompMode : function(name){
             ctx.globalCompositeOperation = compModes[name];
@@ -563,108 +548,160 @@ var EZSprites = (function(){
         },
     }
     var images = {
-        draw : function(image,x,y,scale,rotation,alpha){
-            ctx.setTransform(scale,0,0,scale,x,y);
+        draw : function (image, x, y, scale, rotation, alpha) {
+            ctx.setTransform(scale, 0, 0, scale, x, y);
             ctx.rotate(rotation);
             ctx.globalAlpha = alpha;
-            ctx.drawImage(image,-image.width/2,-image.height/2);
+            ctx.drawImage(image, -image.width / 2, -image.height / 2);
         },
-        drawCenterScaled : function(image,x,y,centerX,centerY,scaleX,scaleY,rotate,alpha){
-            ctx.setTransform(scaleX,0,0,scaleY,x,y);
+        drawWorld : function (image, x, y, scale, rotation, alpha) {
+            ctx.setTransform(transform.sx, 0, 0, transform.sy, transform.x, transform.y);
+            ctx.transform(scale, 0, 0, scale, x, y);
             ctx.rotate(rotation);
             ctx.globalAlpha = alpha;
-            ctx.drawImage(image,-centerX,-centerY);
-        },            
-        drawWorld : function(image,x,y,scale,rotation,alpha){
-            ctx.setTransform(transform.sx,0,0,transform.sy,transform.x,transform.y);
-            ctx.transform(scale,0,0,scale,x,y);
+            ctx.drawImage(image, -image.width / 2, -image.height / 2);
+        },
+        drawLocal : function (image, x, y, scale, rotation, alpha) {
+            ctx.transform(scale, 0, 0, scale, x, y);
             ctx.rotate(rotation);
             ctx.globalAlpha = alpha;
-            ctx.drawImage(image,-image.width/2,-image.height/2);
-        },        
-        drawWorldCenterScaled : function(image,x,y,centerX,centerY,scaleX,scaleY,rotate,alpha){
-            ctx.setTransform(transform.sx,0,0,transform.sy,transform.x,transform.y);
-            ctx.setTransform(scaleX,0,0,scaleY,x,y);
+            ctx.drawImage(image, -image.width / 2, -image.height / 2);
+        },
+        drawCenterScaled : function (image, x, y, centerX, centerY, scaleX, scaleY, rotate, alpha) {
+            ctx.setTransform(scaleX, 0, 0, scaleY, x, y);
             ctx.rotate(rotation);
             ctx.globalAlpha = alpha;
-            ctx.drawImage(image,-centerX,-centerY);
-        },               
-        drawLocal : function(image,x,y,scale,rotation,alpha){
-            ctx.transform(scale,0,0,scale,x,y);
+            ctx.drawImage(image, -centerX, -centerY);
+        },
+        drawWorldCenterScaled : function (image, x, y, centerX, centerY, scaleX, scaleY, rotate, alpha) {
+            ctx.setTransform(transform.sx, 0, 0, transform.sy, transform.x, transform.y);
+            ctx.setTransform(scaleX, 0, 0, scaleY, x, y);
             ctx.rotate(rotation);
             ctx.globalAlpha = alpha;
-            ctx.drawImage(image,-image.width/2,-image.height/2);
-        },        
-        drawLocalCenterScaled : function(image,x,y,centerX,centerY,scaleX,scaleY,rotation,alpha){
-            ctx.transform(scaleX,0,0,scaleY,x,y);
+            ctx.drawImage(image, -centerX, -centerY);
+        },
+        drawLocalCenterScaled : function (image, x, y, centerX, centerY, scaleX, scaleY, rotation, alpha) {
+            ctx.transform(scaleX, 0, 0, scaleY, x, y);
             ctx.rotate(rotation);
             ctx.globalAlpha = alpha;
-            ctx.drawImage(image,-centerX,-centerY);
-        },            
+            ctx.drawImage(image, -centerX, -centerY);
+        },
+        drawAsLine : function (image, x1, y1, x2, y2, scale, alpha) {
+            _x = x2 - x1;
+            _y = y2 - y1;
+            _dist = scale / Math.sqrt(_x * _x + _y * _y); // currently much quicker than Math.hypot on chrome
+            ctx.setTransform(_x, _y, -_y * _dist, _x * _dist, x1, y1);
+            ctx.globalAlpha = alpha;
+            ctx.drawImage(image, 0, -image.height / 2, 1, image.height);
+        },
+        drawWorldAsLine : function (image, x1, y1, x2, y2, scale, alpha) {
+            _x = x2 - x1;
+            _y = y2 - y1;
+            _dist = scale / Math.sqrt(_x * _x + _y * _y); // currently much quicker than Math.hypot on chrome
+            ctx.setTransform(transform.sx, 0, 0, transform.sy, transform.x, transform.y);
+            ctx.transform(_x, _y, -_y * _dist, _x * _dist, x1, y1);
+            ctx.globalAlpha = alpha;
+            ctx.drawImage(image, 0, -image.height / 2, 1, image.height);
+        },
+        drawLocalAsLine : function (image, x1, y1, x2, y2, scale, alpha) {
+            _x = x2 - x1;
+            _y = y2 - y1;
+            _dist = scale / Math.sqrt(_x * _x + _y * _y); // currently much quicker than Math.hypot on chrome
+            ctx.transform(_x, _y, -_y * _dist, _x * _dist, x1, y1);
+            ctx.globalAlpha = alpha;
+            ctx.drawImage(image, 0, -image.heigh / 2, 1, image.height);
+        },
     }
     var sprites = {
-
-        draw : function(image,index,x,y,scale,rotation,alpha){
-            var sh,sw;
-            var spr = image.sprites[index];
-            sh = spr.h
-            sw = spr.w
-            ctx.setTransform(scale,0,0,scale,x,y);
+        draw : function (image, index, x, y, scale, rotation, alpha) {
+            spr = image.sprites[index];
+            sh = spr.h;
+            sw = spr.w;
+            ctx.setTransform(scale, 0, 0, scale, x, y);
             ctx.rotate(rotation);
             ctx.globalAlpha = alpha;
-            ctx.drawImage(image,spr.x,spr.y,sw,sh,-sw/2,-sh/2,sw,sh);
+            ctx.drawImage(image, spr.x, spr.y, sw, sh, -sw / 2, -sh / 2, sw, sh);
         },
-        drawCenterScaled : function(image,index,x,y,centerX,centerY,scaleX,scaleY,rotate,alpha){
-            var sh,sw;
-            var spr = image.sprites[index];
-            sh = spr.h
-            sw = spr.w
-            ctx.setTransform(scaleX,0,0,scaleY,x,y);
+        drawWorld : function (image, index, x, y, scale, rotation, alpha) {
+            spr = image.sprites[index];
+            sh = spr.h;
+            sw = spr.w;
+            ctx.setTransform(transform.sx, 0, 0, transform.sy, transform.x, transform.y);
+            ctx.transform(scale, 0, 0, scale, x, y);
             ctx.rotate(rotation);
             ctx.globalAlpha = alpha;
-            ctx.drawImage(image,spr.x,spr.y,sw,sh,-centerX,-centerY,sw,sh);
+            ctx.drawImage(image, spr.x, spr.y, sw, sh, -sw / 2, -sh / 2, sw, sh);
         },
-        drawWorld : function(image,index,x,y,scale,rotation,alpha){
-            var sh,sw;
-            var spr = image.sprites[index];
-            sh = spr.h
-            sw = spr.w
-            ctx.setTransform(transform.sx,0,0,transform.sy,transform.x,transform.y);
-            ctx.transform(scale,0,0,scale,x,y);
+        drawLocal : function (image, index, x, y, scale, rotation, alpha) {
+            spr = image.sprites[index];
+            sh = spr.h;
+            sw = spr.w;
+            ctx.transform(scale, 0, 0, scale, x, y);
             ctx.rotate(rotation);
             ctx.globalAlpha = alpha;
-            ctx.drawImage(image,spr.x,spr.y,sw,sh,-sw/2,-sh/2,sw,sh);
-        },        
-        drawWorldCenterScaled : function(image,index,x,y,centerX,centerY,scaleX,scaleY,rotate,alpha){
-            var sh,sw;
-            var spr = image.sprites[index];
-            sh = spr.h
-            sw = spr.w
-            ctx.setTransform(transform.sx,0,0,transform.sy,transform.x,transform.y);
-            ctx.transform(scaleX,0,0,scaleY,x,y);
-            ctx.rotate(rotation);
-            ctx.globalAlpha = alpha;
-            ctx.drawImage(image,spr.x,spr.y,sw,sh,-centerX,-centerY,sw,sh);
+            ctx.drawImage(image, spr.x, spr.y, sw, sh, -sw / 2, -sh / 2, sw, sh);
         },
-        drawLocal : function(image,index,x,y,scale,rotation,alpha){
-            var sh,sw;
-            var spr = image.sprites[index];
-            sh = spr.h
-            sw = spr.w
-            ctx.transform(scale,0,0,scale,x,y);
+        drawCenterScaled : function (image, index, x, y, centerX, centerY, scaleX, scaleY, rotate, alpha) {
+            spr = image.sprites[index];
+            sh = spr.h;
+            sw = spr.w;
+            ctx.setTransform(scaleX, 0, 0, scaleY, x, y);
             ctx.rotate(rotation);
             ctx.globalAlpha = alpha;
-            ctx.drawImage(image,spr.x,spr.y,sw,sh,-sw/2,-sh/2,sw,sh);
-        },        
-        drawLocalCenterScaled : function(image,index,x,y,centerX,centerY,scaleX,scaleY,rotation,alpha){
-            var sh,sw;
-            var spr = image.sprites[index];
-            sh = spr.h
-            sw = spr.w
-            ctx.transform(scaleX,0,0,scaleY,x,y);
+            ctx.drawImage(image, spr.x, spr.y, sw, sh, -centerX, -centerY, sw, sh);
+        },
+        drawWorldCenterScaled : function (image, index, x, y, centerX, centerY, scaleX, scaleY, rotate, alpha) {
+            spr = image.sprites[index];
+            sh = spr.h;
+            sw = spr.w;
+            ctx.setTransform(transform.sx, 0, 0, transform.sy, transform.x, transform.y);
+            ctx.transform(scaleX, 0, 0, scaleY, x, y);
             ctx.rotate(rotation);
             ctx.globalAlpha = alpha;
-            ctx.drawImage(image,spr.x,spr.y,sw,sh,-centerX,-centerY,sw,sh);
+            ctx.drawImage(image, spr.x, spr.y, sw, sh, -centerX, -centerY, sw, sh);
+        },
+        drawLocalCenterScaled : function (image, index, x, y, centerX, centerY, scaleX, scaleY, rotation, alpha) {
+            spr = image.sprites[index];
+            sh = spr.h;
+            sw = spr.w;
+            ctx.transform(scaleX, 0, 0, scaleY, x, y);
+            ctx.rotate(rotation);
+            ctx.globalAlpha = alpha;
+            ctx.drawImage(image, spr.x, spr.y, sw, sh, -centerX, -centerY, sw, sh);
+        },
+        drawAsLine : function (image, index, x1, y1, x2, y2, scale, alpha) {
+            spr = image.sprites[index];
+            sh = spr.h;
+            sw = spr.w;
+            _x = x2 - x1;
+            _y = y2 - y1;
+            _dist = scale / Math.sqrt(_x * _x + _y * _y); // currently much quicker than Math.hypot on chrome
+            ctx.setTransform(_x, _y, -_y * _dist, _x * dist, x1, y1);
+            ctx.globalAlpha = alpha;
+            ctx.drawImage(image, spr.x, spr.y, sw, sh, 0, -sh / 2, 1, sh);
+        },
+        drawWorldAsLine : function (image, index, x1, y1, x2, y2, scale, alpha) {
+            spr = image.sprites[index];
+            sh = spr.h;
+            sw = spr.w;
+            _x = x2 - x1;
+            _y = y2 - y1;
+            _dist = scale / Math.sqrt(_x * _x + _y * _y); // currently much quicker than Math.hypot on chrome
+            ctx.setTransform(transform.sx, 0, 0, transform.sy, transform.x, transform.y);
+            ctx.transform(_x, _y, -_y * _dist, _x * dist, x1, y1);
+            ctx.globalAlpha = alpha;
+            ctx.drawImage(image, spr.x, spr.y, sw, sh, 0, -sh / 2, 1, sh);
+        },
+        drawLocalAsLine : function (image, index, x1, y1, x2, y2, scale, alpha) {
+            spr = image.sprites[index];
+            sh = spr.h;
+            sw = spr.w;
+            _x = x2 - x1;
+            _y = y2 - y1;
+            _dist = scale / Math.sqrt(_x * _x + _y * _y); // currently much quicker than Math.hypot on chrome
+            ctx.transform(_x, _y, -_y * _dist, _x * dist, x1, y1);
+            ctx.globalAlpha = alpha;
+            ctx.drawImage(image, spr.x, spr.y, sw, sh, 0, -sh / 2, 1, sh);
         },
         locateSprites : function(image){
             var w,h,c,ct,size,imgData,index,extent,sprites,x,y;
@@ -703,7 +740,7 @@ var EZSprites = (function(){
                     
             }
             image.sprites = sprites;
-            return sprites.length;
+            return image
         }
     }
     var API = {
