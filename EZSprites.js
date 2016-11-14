@@ -43,6 +43,30 @@ Helper function
         Returns 
             image  If the image is unmodified then the original is returned. If modified then a new copy is returned
 
+            
+Notes on sprites.
+
+    Sprites are defined by an array attached to the image called sprites. Each entry contains details about where on the image the sprite pixels are.
+    
+    There are two types of sprites that can be mixed into the array.
+    
+    Standard sprites 
+        Just hold details of where on the sprite sheet the sprite is.
+    
+    Virtual 
+        A virtual sprite is a sprite who's size is larger then the pixels contained on the sprite sheet. When you have a character that has a lot of movement the size of the pixels it contains can vary between frames. Rather than waste space on the sprite sheet, and waste rendering time rendering transparent pixels, the virtual sprite allows you to have all sprites the same virtual size. That may be 128 by 128 pixels, but the actual sprite on the sprite sheet is only 28by28, the next may be 32 by 16. But when you render it will be treated as a fixed size.
+    
+    Each sprite in the array has one of the following structures
+    
+    Standard sprite
+        x,y The top left coordinated of the sprite on the sprite sheet.
+        w,h The width and height of the sprite on the sprite sheet.
+    Virtual sprite
+        x,y The top left coordinated of the sprite on the sprite sheet.
+        w,h The width and height of the sprite on the sprite sheet.
+        vx,vy The offset from the virtual top left of the sprite to the top left pixel on the sprite sheet
+        vw,vh The virtual width and height of the sprite.
+        
     
 Draw functions
 
@@ -106,6 +130,8 @@ Overview of EZSprites data structure
 ----
 
 EZSprite properties
+
+
     resetAll()
     sprites
         draw (image, index, x, y, scale, rotate, alpha);
@@ -232,7 +258,7 @@ var EZSprites = (function(){
     var ctxStackTop = 0;
     var w,h;    // width and height
     var _x, _y, _x1, _y1, _dist;  // work variables
-    var sw, sh; // work vars (sprite width and height)
+    var sw, sh, sw1, sh1; // work vars (sprite width and height)
     var spr; // work var
     var transform = {
         x : 0,
@@ -367,6 +393,12 @@ var EZSprites = (function(){
             }
             if(checkColour(x+1,y) && !lookRight){
                 stack.push([x+1,y]);
+            }
+        }
+        // zero all pixels inside extent
+        for(y = miny; y <= maxy; y ++){
+            for(x = minx; x <= maxx; x++){
+                data[y * w + x] = 0;
             }
         }
         if(extent === undefined){
@@ -645,11 +677,17 @@ var EZSprites = (function(){
     var sprites = {
         draw : function (image, index, x, y, scale, rotation, alpha) {
             spr = image.sprites[index];
-            sh = spr.h;
-            sw = spr.w;
             ctx.setTransform(scale, 0, 0, scale, x, y);
             ctx.rotate(rotation);
             ctx.globalAlpha = alpha;
+            sh = spr.h;
+            sw = spr.w;
+            if(spr.vx !== undefined){  // virtual sprite dimensions
+                _x = -spr.vw / 2 + spr.vx;
+                _y = -spr.vh / 2 + spr.vy;
+                ctx.drawImage(image, spr.x, spr.y, sw, sh, _x, _y, sw, sh);
+                return;
+            }
             ctx.drawImage(image, spr.x, spr.y, sw, sh, -sw / 2, -sh / 2, sw, sh);
         },
         drawWorld : function (image, index, x, y, scale, rotation, alpha) {
@@ -660,6 +698,12 @@ var EZSprites = (function(){
             ctx.transform(scale, 0, 0, scale, x, y);
             ctx.rotate(rotation);
             ctx.globalAlpha = alpha;
+            if(spr.vx !== undefined){  // virtual sprite dimensions
+                _x = -spr.vw / 2 + spr.vx;
+                _y = -spr.vh / 2 + spr.vy;
+                ctx.drawImage(image, spr.x, spr.y, sw, sh, _x, _y, sw, sh);
+                return;
+            }
             ctx.drawImage(image, spr.x, spr.y, sw, sh, -sw / 2, -sh / 2, sw, sh);
         },
         drawLocal : function (image, index, x, y, scale, rotation, alpha) {
@@ -669,6 +713,12 @@ var EZSprites = (function(){
             ctx.transform(scale, 0, 0, scale, x, y);
             ctx.rotate(rotation);
             ctx.globalAlpha = alpha;
+            if(spr.vx !== undefined){  // virtual sprite dimensions
+                _x = -spr.vw / 2 + spr.vx;
+                _y = -spr.vh / 2 + spr.vy;
+                ctx.drawImage(image, spr.x, spr.y, sw, sh, _x, _y, sw, sh);
+                return;
+            }
             ctx.drawImage(image, spr.x, spr.y, sw, sh, -sw / 2, -sh / 2, sw, sh);
         },
         drawTiles : function(image,tiles,x,y,scale,rotation,alpha){
@@ -736,6 +786,12 @@ var EZSprites = (function(){
             ctx.setTransform(scaleX, 0, 0, scaleY, x, y);
             ctx.rotate(rotation);
             ctx.globalAlpha = alpha;
+            if(spr.vx !== undefined){  // virtual sprite dimensions
+                _x = -centerX + spr.vx;
+                _y = -centerY + spr.vy;
+                ctx.drawImage(image, spr.x, spr.y, sw, sh, _x, _y, sw, sh);
+                return;
+            }
             ctx.drawImage(image, spr.x, spr.y, sw, sh, -centerX, -centerY, sw, sh);
         },
         drawWorldCenterScaled : function (image, index, x, y, centerX, centerY, scaleX, scaleY, rotate, alpha) {
@@ -746,6 +802,12 @@ var EZSprites = (function(){
             ctx.transform(scaleX, 0, 0, scaleY, x, y);
             ctx.rotate(rotation);
             ctx.globalAlpha = alpha;
+            if(spr.vx !== undefined){  // virtual sprite dimensions
+                _x = -centerX + spr.vx;
+                _y = -centerY + spr.vy;
+                ctx.drawImage(image, spr.x, spr.y, sw, sh, _x, _y, sw, sh);
+                return;
+            }
             ctx.drawImage(image, spr.x, spr.y, sw, sh, -centerX, -centerY, sw, sh);
         },
         drawLocalCenterScaled : function (image, index, x, y, centerX, centerY, scaleX, scaleY, rotation, alpha) {
@@ -755,6 +817,12 @@ var EZSprites = (function(){
             ctx.transform(scaleX, 0, 0, scaleY, x, y);
             ctx.rotate(rotation);
             ctx.globalAlpha = alpha;
+            if(spr.vx !== undefined){  // virtual sprite dimensions
+                _x = -centerX + spr.vx;
+                _y = -centerY + spr.vy;
+                ctx.drawImage(image, spr.x, spr.y, sw, sh, _x, _y, sw, sh);
+                return;
+            }
             ctx.drawImage(image, spr.x, spr.y, sw, sh, -centerX, -centerY, sw, sh);
         },
         drawAsLine : function (image, index, x1, y1, x2, y2, scale, alpha) {
@@ -764,7 +832,7 @@ var EZSprites = (function(){
             _x = x2 - x1;
             _y = y2 - y1;
             _dist = scale / Math.sqrt(_x * _x + _y * _y); // currently much quicker than Math.hypot on chrome
-            ctx.setTransform(_x, _y, -_y * _dist, _x * dist, x1, y1);
+            ctx.setTransform(_x, _y, -_y * _dist, _x * _dist, x1, y1);
             ctx.globalAlpha = alpha;
             ctx.drawImage(image, spr.x, spr.y, sw, sh, 0, -sh / 2, 1, sh);
         },
@@ -776,7 +844,7 @@ var EZSprites = (function(){
             _y = y2 - y1;
             _dist = scale / Math.sqrt(_x * _x + _y * _y); // currently much quicker than Math.hypot on chrome
             ctx.setTransform(transform.sx, 0, 0, transform.sy, transform.x, transform.y);
-            ctx.transform(_x, _y, -_y * _dist, _x * dist, x1, y1);
+            ctx.transform(_x, _y, -_y * _dist, _x * _dist, x1, y1);
             ctx.globalAlpha = alpha;
             ctx.drawImage(image, spr.x, spr.y, sw, sh, 0, -sh / 2, 1, sh);
         },
@@ -787,9 +855,130 @@ var EZSprites = (function(){
             _x = x2 - x1;
             _y = y2 - y1;
             _dist = scale / Math.sqrt(_x * _x + _y * _y); // currently much quicker than Math.hypot on chrome
-            ctx.transform(_x, _y, -_y * _dist, _x * dist, x1, y1);
+            ctx.transform(_x, _y, -_y * _dist, _x * _dist, x1, y1);
             ctx.globalAlpha = alpha;
             ctx.drawImage(image, spr.x, spr.y, sw, sh, 0, -sh / 2, 1, sh);
+        },
+        drawAsLineRep : function (image, index, x1, y1, x2, y2, scale, alpha) {
+            var i, len;
+            if(Array.isArray(index)){
+                spr = image.sprites[index[0]];
+                i = 1;
+                len = index.length;
+            }else{
+                spr = image.sprites[index];
+            }
+            sh = spr.h;
+            sw = spr.w;
+            _x = x2 - x1;
+            _y = y2 - y1;
+            _dist = Math.sqrt(_x * _x + _y * _y); // currently much quicker than Math.hypot on chrome
+            _x *= scale / _dist;
+            _y *= scale / _dist;
+            ctx.setTransform(_x, _y, -_y, _x, x1, y1);
+            ctx.globalAlpha = alpha;
+            sh1 = -sh / 2;
+            _dist *= 1 / scale;
+            if(i !== undefined){
+                for(_x1 = 0; _x1 < _dist-sw; _x1 += sw){            
+                
+                    ctx.drawImage(image, spr.x, spr.y, sw, sh, _x1, sh1, sw, sh);
+                    spr = image.sprites[index[(i++)%len]];
+                }
+                if(_dist - _x1 < sw){
+                    sw = _dist-_x1;
+                    ctx.drawImage(image, spr.x, spr.y, sw, sh, _x1, sh1, sw, sh);
+                }
+            }else{
+                for(_x1 = 0; _x1 < _dist-sw; _x1 += sw){            
+                    ctx.drawImage(image, spr.x, spr.y, sw, sh, _x1, sh1, sw, sh);
+                }
+                if(_dist - _x1 < sw){
+                    sw = _dist-_x1;
+                    ctx.drawImage(image, spr.x, spr.y, sw, sh, _x1, sh1, sw, sh);
+                }
+            }
+        },
+        drawWorldAsLineRep : function (image, index, x1, y1, x2, y2, scale, alpha) {
+            var i, len;
+            if(Array.isArray(index)){
+                spr = image.sprites[index[0]];
+                i = 1;
+                len = index.length;
+            }else{
+                spr = image.sprites[index];
+            }
+            sh = spr.h;
+            sw = spr.w;
+            _x = x2 - x1;
+            _y = y2 - y1;
+            _dist = Math.sqrt(_x * _x + _y * _y); // currently much quicker than Math.hypot on chrome
+            _x *= scale / _dist;
+            _y *= scale / _dist;
+            ctx.setTransform(transform.sx, 0, 0, transform.sy, transform.x, transform.y);
+            ctx.transform(_x, _y, -_y, _x, x1, y1);
+            ctx.globalAlpha = alpha;
+            sh1 = -sh / 2;
+            _dist *= 1 / scale;
+            if(i !== undefined){
+                for(_x1 = 0; _x1 < _dist-sw; _x1 += sw){            
+                
+                    ctx.drawImage(image, spr.x, spr.y, sw, sh, _x1, sh1, sw, sh);
+                    spr = image.sprites[index[(i++)%len]];
+                }
+                if(_dist - _x1 < sw){
+                    sw = _dist-_x1;
+                    ctx.drawImage(image, spr.x, spr.y, sw, sh, _x1, sh1, sw, sh);
+                }
+            }else{
+                for(_x1 = 0; _x1 < _dist-sw; _x1 += sw){            
+                    ctx.drawImage(image, spr.x, spr.y, sw, sh, _x1, sh1, sw, sh);
+                }
+                if(_dist - _x1 < sw){
+                    sw = _dist-_x1;
+                    ctx.drawImage(image, spr.x, spr.y, sw, sh, _x1, sh1, sw, sh);
+                }
+            }
+        },
+        drawLocalAsLineRep : function (image, index, x1, y1, x2, y2, scale, alpha) {
+            var i, len;
+            if(Array.isArray(index)){
+                spr = image.sprites[index[0]];
+                i = 1;
+                len = index.length;
+            }else{
+                spr = image.sprites[index];
+            }
+            sh = spr.h;
+            sw = spr.w;
+            _x = x2 - x1;
+            _y = y2 - y1;
+            _dist = Math.sqrt(_x * _x + _y * _y); // currently much quicker than Math.hypot on chrome
+            _x *= scale / _dist;
+            _y *= scale / _dist;
+            ctx.transform(_x, _y, -_y, _x, x1, y1);
+            ctx.globalAlpha = alpha;
+            sh1 = -sh / 2;
+            _dist *= 1 / scale;
+            if(i !== undefined){
+                for(_x1 = 0; _x1 < _dist-sw; _x1 += sw){            
+                
+                    ctx.drawImage(image, spr.x, spr.y, sw, sh, _x1, sh1, sw, sh);
+                    spr = image.sprites[index[(i++)%len]];
+                }
+                if(_dist - _x1 < sw){
+                    sw = _dist-_x1;
+                    ctx.drawImage(image, spr.x, spr.y, sw, sh, _x1, sh1, sw, sh);
+                }
+            }else{
+                for(_x1 = 0; _x1 < _dist-sw; _x1 += sw){            
+                    ctx.drawImage(image, spr.x, spr.y, sw, sh, _x1, sh1, sw, sh);
+                }
+                if(_dist - _x1 < sw){
+                    sw = _dist-_x1;
+                    ctx.drawImage(image, spr.x, spr.y, sw, sh, _x1, sh1, sw, sh);
+                }
+            }
         },
         locateSprites : function(image){
             var w,h,c,ct,size,imgData,index,extent,sprites,x,y;

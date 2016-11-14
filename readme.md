@@ -1,5 +1,7 @@
 EZSprites
+----
 
+EZSprites is a work in progress.
 
 
 EZSprites is a very simple sprite rendering utility written in javascript for use with the 2D canvas API. Just set the context and then draw sprites as images or from sprite sheets. The most basic sprite is centered, scaled, rotated and has an alpha.
@@ -29,6 +31,7 @@ No need to worry about the transform or much of the math involved in placing the
 
 
 Helper function 
+----
 
    EZSprites.sprites.locateSprites (image)
         Scans the supplied image (spritesheet) and locates all the sprites. A sprite is any continuous set of pixels 
@@ -51,12 +54,40 @@ Helper function
         Returns 
             image  If the image is unmodified then the original is returned. If modified then a new copy is returned
 
+            
+Notes on sprites.
+----
+
+    Sprites are defined by an array attached to the image called sprites. Each entry contains details about where on the image the sprite pixels are.
+    
+    There are two types of sprites that can be mixed into the array.
+    
+    Standard sprites 
+        Just hold details of where on the sprite sheet the sprite is.
+    
+    Virtual 
+        A virtual sprite is a sprite who's size is larger then the pixels contained on the sprite sheet. When you have a character that has a lot of movement the size of the pixels it contains can vary between frames. Rather than waste space on the sprite sheet, and waste rendering time rendering transparent pixels, the virtual sprite allows you to have all sprites the same virtual size. That may be 128 by 128 pixels, but the actual sprite on the sprite sheet is only 28by28, the next may be 32 by 16. But when you render it will be treated as a fixed size.
+    
+    Each sprite in the array has one of the following structures
+    
+    Standard sprite
+        x,y The top left coordinated of the sprite on the sprite sheet.
+        w,h The width and height of the sprite on the sprite sheet.
+    Virtual sprite
+        x,y The top left coordinated of the sprite on the sprite sheet.
+        w,h The width and height of the sprite on the sprite sheet.
+        vx,vy The offset from the virtual top left of the sprite to the top left pixel on the sprite sheet
+        vw,vh The virtual width and height of the sprite.
+            
     
 Draw functions
+----
 
 For EZSprites.sprite and EZSprite.image modules the main draw functions are draw, drawCenterScaled, drawAsLine
 
 Drawing
+----
+
     EZSprites.sprites.draw (image, index, x, y, scale, rotate, alpha)
     EZSprites.images.draw (image,x, y, scale, rotate, alpha)
         Draws sprite or image. If sprite requires index of sprite.
@@ -114,6 +145,8 @@ Overview of EZSprites data structure
 ----
 
 EZSprite properties
+
+
     resetAll()
     sprites
         draw (image, index, x, y, scale, rotate, alpha);
