@@ -23,15 +23,21 @@ var mouseCanvas = (function(){
         if (typeof setGlobals === "function") {
             setGlobals();
         }
-        if (typeof onResize === "function") {
+        if (typeof onResize === "function" || notificationList.length > 0) {
             resizeCount += 1;
             setTimeout(debounceResize, RESIZE_DEBOUNCE_TIME);
         }
     }
     function debounceResize() {
+        var i;
         resizeCount -= 1;
         if (resizeCount <= 0) {
-            onResize();
+            if(typeof onResize === "function"){
+                onResize();
+            }
+            for(i = 0; i < notificationList.length; i++){
+                notificationList[i](ctx);
+            }
         }
     }
     setGlobals = function () {
@@ -61,8 +67,8 @@ var mouseCanvas = (function(){
         var m = mouse;
         function mouseMove(e) {
             var t = e.type;
-            m.x = e.clientX - m.bounds.left;
-            m.y = e.clientY - m.bounds.top;
+            m.x = e.pageX - m.bounds.left;
+            m.y = e.pageY - m.bounds.top;
             m.alt = e.altKey;
             m.shift = e.shiftKey;
             m.ctrl = e.ctrlKey;
@@ -133,11 +139,12 @@ var mouseCanvas = (function(){
 
 
     var renderList = [];    
+    var notificationList = [];
     var stop = false;
 
     function update(timer) { // Main update loop
         for(var i = 0; i < renderList.length; i ++){
-            renderList[i](timer,ctx);            
+            renderList[i](timer,ctx, w, h);            
         }
         if(!stop){
             requestAnimationFrame(update);
@@ -156,6 +163,9 @@ var mouseCanvas = (function(){
         stop : function(){stop = true;},
         addRender : function(renderFunction){
             renderList.push(renderFunction);
+        },
+        addNotification : function(notifyFunction){
+            notificationList.push(notifyFunction);
         },
         mouse : mouse,
         canvas : canvas,

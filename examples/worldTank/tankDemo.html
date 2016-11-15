@@ -60,22 +60,28 @@
         var h = canvas.height;
         var cw = w / 2;  // center 
         var ch = h / 2;
+        var world = {
+            posX : 0,
+            posY : 0,
+            scale : 1,
+        }
+        var mouseWorld = {x : 0,y :0};
         
         
         var ezs = EZSprites.sprites;
         function drawTank(tank){
             var t = tank;
             var r = tank.turret;
-            EZSprites.sprites.draw(spriteSheet, 3, t.x + 5, t.y + 5, t.scale, t.dir, 1); // draw shadow
-            EZSprites.sprites.draw(spriteSheet, 2, t.x, t.y, t.scale, t.dir, 1);         // draw base
-            EZSprites.context.setLocal(t.x + 5, t.y + 5, t.scale, t.dir);     // set local space to the tank base shadow
+            EZSprites.sprites.drawWorld(spriteSheet, 3, t.x + 5, t.y + 5, t.scale, t.dir, 1); // draw shadow
+            EZSprites.sprites.drawWorld(spriteSheet, 2, t.x, t.y, t.scale, t.dir, 1);         // draw base
+            EZSprites.context.setWorldLocal(t.x + 5, t.y + 5, t.scale, t.dir);     // set local space to the tank base shadow
             EZSprites.sprites.drawLocalCenterScaled(                          // draw the turret shadow
                 spriteSheet, 0,
                 r.x, r.y,
                 r.cx, r.cy,
                 t.scale, t.scale, r.dir, 1
             );
-            EZSprites.context.setLocal(t.x, t.y, t.scale, t.dir); // set local space to the tank base             
+            EZSprites.context.setWorldLocal(t.x, t.y, t.scale, t.dir); // set local space to the tank base             
             EZSprites.sprites.drawLocalCenterScaled(              // draw the turret in the rotated scaled translated 
                 spriteSheet, 1,                                   // base coordinates x is across the tank, and y down
                 r.x, r.y,
@@ -94,7 +100,7 @@
                     );
                     EZSprites.FX.normal();
                 }
-            }
+            }    
         }
 
         var tanks = [];
@@ -120,26 +126,52 @@
 
         // main update function
         function renderTanks(){
+            var tx,ty;
             ctx.setTransform(1,0,0,1,0,0); // reset transform
             ctx.globalAlpha = 1;           // reset alpha
             ctx.clearRect(0,0,w,h);
             if(spriteSheet.sprites){
                 var shoot = false;
+                
+                mouseWorld = EZSprites.world.screen2World(mouse.x,mouse.y,mouseWorld);
                 if(mouse.buttonRaw & 1){
-                    tanks.push(createTank(mouse.x,mouse.y));
+                    tanks.push(createTank(mouseWorld.x,mouseWorld.y));
                     tanks[tanks.length-1].dir = Math.random() * Math.PI * 2;
                     mouse.buttonRaw = 0;
                     shoot = true;
                 }
+                if(mouse.buttonRaw & 4){
+                    world.posX += mouse.x - mouse.lastX;
+                    world.posY += mouse.y - mouse.lastY;
+                    
+                    EZSprites.world.setPosition(world.posX,world.posY);
+                    mouseWorld = EZSprites.world.screen2World(mouse.x,mouse.y,mouseWorld);
+                }
+                if(mouse.w !== 0){
+                    if(mouse.w > 0){
+                        EZSprites.world.zoom2Screen(mouse.x,mouse.y,1.01,true);
+                        mouse.w -= 10
+                    }else{
+                        EZSprites.world.zoom2Screen(mouse.x,mouse.y,1.01,false);
+                        mouse.w += 10
+                    }
+                    mouseWorld = EZSprites.world.screen2World(mouse.x,mouse.y,mouseWorld);
+                }
                 for(var i = 0; i < tanks.length; i ++){
                     var t = tanks[i];
-                    t.dir += t.turn;      
-                    if(shoot && t.shoot <= 0){
-                        t.shoot = 11 + Math.random() * 20;
+                    if(i === 0){
+                        t.x = mouseWorld.x;
+                        t.y = mouseWorld.y;
+                    
+                    }else{
+                        t.dir += t.turn;      
+                        if(shoot && t.shoot <= 0){
+                            t.shoot = 11 + Math.random() * 20;
+                        }
+                        t.turret.dir = Math.atan2(t.y-mouseWorld.y,t.x-mouseWorld.x)-t.dir - Math.PI / 2;
+                        t.x += Math.sin(t.dir);
+                        t.y -= Math.cos(t.dir);
                     }
-                    t.turret.dir = Math.atan2(t.y-mouse.y,t.x-mouse.x)-t.dir - Math.PI / 2;
-                    t.x += Math.sin(t.dir);
-                    t.y -= Math.cos(t.dir);
                     drawTank(t);
                 }
                 EZSprites.context.setDefaults();
@@ -151,23 +183,29 @@
                     ctx.lineWidth = 4;
                     ctx.fillStyle = "black";
                     ctx.globalAlpha = 0.5;
-                    ctx.fillText("Click to add a tank!",w / 2 + 8, h * 0.3 + 8);
+                    ctx.fillText("World tank!",w / 2 + 8, h * 0.3 + 8);
                     ctx.fillStyle = "#7F4";
                     ctx.strokeStyle = "#CF8";
                     ctx.globalAlpha =1;
-                    ctx.strokeText("Click to add a tank!",w / 2, h * 0.3);
-                    ctx.fillText("Click to add a tank!",w / 2, h * 0.3);
+                    ctx.strokeText("World tank!",w / 2, h * 0.3);
+                    ctx.fillText("World tank!",w / 2, h * 0.3);
+                    ctx.font = "24px arial black";
+                    ctx.fillStyle = "black";
+                    ctx.fillText("Left click to add a tank!",w / 2, h * 0.3 + 64);
+                    ctx.fillText("Right click drag to pan!",w / 2, h * 0.3 + 64 + 28);
+                    ctx.fillText("Wheel to zoom!",w / 2, h * 0.3 + 64 + 28 + 28);
                 }
-                
-                
-            }            
+            }     
+            mouse.lastX = mouse.x;
+            mouse.lastY = mouse.y;
+            
         }
         function contextChanged(_ctx){
             EZSprites.context.setCtx(_ctx);
             ctx = _ctx;
             canvas = ctx.canvas;
             w = canvas.width;
-            h = canvas.height;       
+            h = canvas.height;            
         }
         EZSprites.context.setCtx(ctx);
 
@@ -182,7 +220,7 @@
         }        
     
         mouseCanvas.addRender(renderTanks);
-        mouseCanvas.addNotification(contextChanged);        
+        mouseCanvas.addNotification(contextChanged);
     
     </script>
     </body>

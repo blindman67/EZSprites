@@ -1,5 +1,33 @@
 
 /*===================================================================================================================120
+Its all about performance.
+----
+
+    Since my first 8 bit game in 1980 written in assemble to the game I am writing at the moment in JavaScript (I am always writing a game) the number one overriding objective for the code is performance. Code performance means I do not have to limit my imagination (as much) and can feel confident when adding extra FX, or more sophisticated logic that it will not effect the frame rate.
+    
+    EZSprites is no exception and is designed with performance in mind. There is hence no error checking or vetting in this code as this adds overhead reduces the amount of code that is dedicated to the game per frame. As a user of this utility you need to be careful and code in such a way as to avoid sending bad values to EZSprites function.
+    
+    One potential source of error is the sprite sheet index that you pass as a second argument to the EZSprites.sprites functions. If you pass an index that is out of range the default JavaScript error will be thrown. There is no acceptable default behaviour that can solve this problem (don't draw anything ??, use a place holder image??? are just as bad as crashing). So be carefull.
+    
+    **Pools and static memory.**
+    
+    Javascript comes with Garbage Collection (GC) and for any that have ever had to manage their own memory will know is the greatest thing since sliced bread. But it has its dark side, you have no control over it, and when it does its thing it will block your code. Its easy to tell if a game is badly managing its memory as every few second it will pause. To avoid this use pools and pre assign memory (static memory).
+    
+    A pool is a predefined set of objects that have been created and assigned memory at the start of the performance section of code. Typically at the level start. The objects are not deleted until performance is not needed, the end of level. As you need object you get them from the pool, use them until not needed, then returned to the pool for use again latter.
+    
+    Static memory is just the memory assigned to pools or arrays to the start of the performance section. When using an array you should initialise it with the maximum size you expect it to grow to. You should not try to avoid increasing its size because increasing an arrays size means internally JS makes a new copy of the array to accommodate the extra length, and dumps the old copy for GC to clean up.
+    
+    Some of the functions in EZSprites have an optional return object (for example EZSprites.world.screen2World(x,y,retPosition)) if you do not supply the return object a new one is created for you and returned. If you do this every frame then you will add more work to the GC and degrade the performance. To avoid GC hits create the return object at the start of the game/level and use that same object every time you make that call. Never delete it.
+    
+    EZSprites uses pools and static memory, 
+    
+    > **Note:** Care has been taken to not hold references to object outside the control of EZSprite. Do not rely on EZSprites to hold references to images, context, or any objects unless they are on one of the various internal stacks. You must ensure that every function called that begins with `push` must have a associated `pop`
+    
+    > If you have a condition that may cause the code to stop using EZSprites at some point and you have lost track of what stacks you have used, call `EZSprites.resetAll` it will empty all the stacks and reassign static memory for any internal memory it needs. 
+    
+    > The stacks used are pre assigned 16 items. If you expect the depth of push,pop operations to be deeper than 16 call resetAll with the max depth you expect the stacks to be.
+    
+
 
 Basic usage. 
 ----
@@ -195,27 +223,54 @@ EZSprite properties
         copy()
         xor()
     context
-        setCtx(context);
+        setCtx(context); 
+            Set the current context. Overwrites existing if any.
         getCtx();
+            Get the current context being used.
         pushCtx(context)
+            Push the current context onto a stack and set the new context to the the argument given.
         popCtx()
+            Pops the last pushed context from the stack and sets it as the current context.
         setWorldLocal(x,y,scaleX,scaleY,rotation)     
+            Sets the context transform to the World and local transform
         setLocal(x,y,scaleX,scaleY,rotation)
+            Argument options
+                (x,y,scaleX,scaleY,rotation)
+                (x,y,scale,rotation)
+            Sets the context transform to the local transform. 
         local()
+            Recalls last transform set by setLocal, or setWorldLocal
         setDefaults()
+            Restores used context settings to canvas default. globalAlpha, currentTransform, globalCompositeOperation.
         
     world  
         Use to set world coordinates
         
         setTransform(originX,originY,scaleX,scaleY)
-            Set the current world coordinates
-            
+            Argument options
+                (originX,originY,scaleX,scaleY)
+                (originX,originY,scale)
+            Set the current world coordinates. If scaleY is not supplied then scaleX is used as the uniform scale.
+        setPosition(originX,originY){
+            Set the current world origin coordinates.
+        setScale(scaleX,scaleY){
+            Argument options
+                (scaleX,scaleY)
+                (scale)
+            Set the world scale.If scaleY is not supplied then scaleX is used as the uniform scale.
+        zoom2Screen(x,y,amount,invert)
+            Zooms by amount (amount is a scaling multiplier) at the world position corresponding to the screen coordinates x,y. If invert is true the direction of zoom is reversed
+        screen2World(x, y, retPosition)
+            Converts screen coordinates to current world coordinates. retPosition is optional. If not supplied a new one is created. (WARNING retPostion should be used, if you don't each call to this function will allocate new memory and if you do not keep a reference then it will also incur addition GC overhead)
+        world2Screen(x, y, retPosition)
+            Converts current world coordinates to screen coordinates.retPosition is optional. If not supplied a new one is created. (WARNING retPostion should be used, if you don't each call to this function will allocate new memory and if you do not keep a reference then it will also incur addition GC overhead)
         getTransform(returnTransform)
-            Get the current world coordinates
-            
+            Get the current world coordinates            
         pushTransform(originX,originY,scaleX,scaleY)
-            Push current world coordinates onto the stack and set a new one. Note you must match this with a pop
-            
+            Argument options
+                (originX,originY,scaleX,scaleY)
+                (originX,originY,scale)
+            Push current world coordinates onto the stack and set a new one. Note you must match this with a pop. If scaleY is not supplied then scaleX is used as the uniform scale.            
         popTransform()
             Pop a previously saved world coordinates from the stack
             
@@ -259,7 +314,7 @@ var EZSprites = (function(){
     var w,h;    // width and height
     var _x, _y, _x1, _y1, _dist;  // work variables
     var sw, sh, sw1, sh1; // work vars (sprite width and height)
-    var spr; // work var
+    var spr,t; // work var
     var transform = {
         x : 0,
         y : 0,
@@ -275,17 +330,28 @@ var EZSprites = (function(){
         scaleY : 1,
         rotate : 0,
     }    
-    function resetAll(){
+    function resetAll(staticMemoryCount){
+        var i;
+        staticMemoryCount = staticMemoryCount === undefined ? 16 : staticMemoryCount;
         ctxStackTop = 0;
         tStackTop = 0;
         transformStack = [];
-        ctxStack = [null, null, null, null, null, null, null, null, null];
+        ctxStack = [];
+        compModeStack = [];
+        // fill the transform array with static objects
+        for(i = 0; i < staticMemoryCount; i += 1){
+            ctxStack.push(null);
+            compModeStack.push(null);
+            globalTransform.pushTransform(0,0,1);
+        }
+        for(i = 0; i < staticMemoryCount; i += 1){
+            globalTransform.popTransform();
+        }
         ctx = null;
         transform.x = 0;
         transform.y = 0;
         transform.sx = 1;
         transform.sy = 1;
-        compModeStack = [];
         compModeStackTop = 0;
 
     }
@@ -548,7 +614,40 @@ var EZSprites = (function(){
             transform.x = originX;
             transform.y = originY;
             transform.sx = scaleX;
-            transform.sy = scaleY;
+            transform.sy = scaleY !== undefined ? scaleY : scaleX;
+        },
+        setPosition : function(originX, originY){
+            transform.x = originX;
+            transform.y = originY;
+        },
+        setScale : function(scaleX, scaleY){
+            transform.sx = scaleX;
+            transform.sy = scaleY !== undefined ? scaleY : scaleX;
+        },
+        zoom2Screen : function(x, y, amount, invert){
+            amount = invert === true ? 1 / amount : amount;
+            _x = x - transform.x;
+            _y = y - transform.y;
+            transform.sx *= amount;
+            transform.sy *= amount;
+            transform.x = x - (x - transform.x) * amount;
+            transform.y = y - (y - transform.y) * amount;
+        },
+        screen2World : function(x,y,retPosition){
+            if(retPosition === undefined){
+                retPosition = {};
+            }
+            retPosition.x = (x - transform.x) / transform.sx;
+            retPosition.y = (y - transform.y) / transform.sy;
+            return retPosition;
+        },
+        world2Screen : function(x, y, retPosition){
+            if(retPosition === undefined){
+                retPosition = {};
+            }
+            retPosition.x = x * transform.sx + transform.x;
+            retPosition.y = y * transform.sy + transform.y;
+            return retPosition;
         },
         getTransform : function(retTransform){
             if(retTransform === undefined){
@@ -561,7 +660,6 @@ var EZSprites = (function(){
             return retTransform;
         },
         pushTransform : function(originX,originY,scaleX,scaleY){
-            var t;
             if(tStackTop >= transformStack.length){                    
                 t = {};
                 transformStack[tStackTop] = t;
@@ -577,7 +675,7 @@ var EZSprites = (function(){
             transform.x = originX;
             transform.y = originY;
             transform.sx = scaleX;
-            transform.sy = scaleY;
+            transform.sy = scaleY !== undefined ? scaleY : scaleX;
         },
         popTransform : function(){
             if(tStackTop > 0){
@@ -1069,5 +1167,6 @@ var EZSprites = (function(){
         world : globalTransform,
         namedCompModes : compModesNames,
     }
+    resetAll();
     return API;        
 })();

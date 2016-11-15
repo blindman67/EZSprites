@@ -267,4 +267,7 @@ EZSprite properties
 
 See the examples for more code examples.
 
+
 - Tank example shows how to use `drawLocal`, `drawLocalCenterScaled`, `setLocal` to set the local coordinate space. The base of the tank rotates and moves. To draw the turret it needs to rotate and move with the tank base but still have independent rotation scale and rotation. When the tank shoots the flash needs to be at the end of the gun. All you need is the y distance the end of the gun is from the turret center. Code in the script tag of tankDemo.html
+
+- WorldTank shows the use of `drawWorld`,`drawLocal`, `drawLocalCenterScaled`, `setWorldLocal`, `setTransform`, `screen2World`, `zoom2Screen` and is basically the same as Tank but with the ability to zoom and pan the world. Use mouse wheel to zoom and right button to pan.
