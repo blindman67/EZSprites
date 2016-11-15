@@ -158,8 +158,6 @@
                     ctx.strokeText("Click to add a tank!",w / 2, h * 0.3);
                     ctx.fillText("Click to add a tank!",w / 2, h * 0.3);
                 }
-                
-                
             }            
         }
         function contextChanged(_ctx){
@@ -172,7 +170,7 @@
         EZSprites.context.setCtx(ctx);
 
         var spriteSheet = new Image();
-        spriteSheet.src = "tank.png";
+        spriteSheet.src = "../resources/tank.png";
         spriteSheet.onload = function(){
             // can only use the next function if you have COREs permission
             // var count = EZSprites.sprites.locateSprites(this);

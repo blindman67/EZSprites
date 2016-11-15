@@ -342,10 +342,10 @@ var EZSprites = (function(){
         for(i = 0; i < staticMemoryCount; i += 1){
             ctxStack.push(null);
             compModeStack.push(null);
-            globalTransform.pushTransform(0,0,1);
+            globalTransform.pushWorld(0,0,1);
         }
         for(i = 0; i < staticMemoryCount; i += 1){
-            globalTransform.popTransform();
+            globalTransform.popWorld();
         }
         ctx = null;
         transform.x = 0;
@@ -610,7 +610,7 @@ var EZSprites = (function(){
         },            
     }
     var globalTransform = {
-        setTransform : function(originX,originY,scaleX,scaleY){
+        setWorld : function(originX,originY,scaleX,scaleY){
             transform.x = originX;
             transform.y = originY;
             transform.sx = scaleX;
@@ -649,7 +649,7 @@ var EZSprites = (function(){
             retPosition.y = y * transform.sy + transform.y;
             return retPosition;
         },
-        getTransform : function(retTransform){
+        getWorld : function(retTransform){
             if(retTransform === undefined){
                 retTransform = {};
             }
@@ -659,7 +659,7 @@ var EZSprites = (function(){
             retTransform.sy = transform.sy
             return retTransform;
         },
-        pushTransform : function(originX,originY,scaleX,scaleY){
+        pushWorld : function(originX,originY,scaleX,scaleY){
             if(tStackTop >= transformStack.length){                    
                 t = {};
                 transformStack[tStackTop] = t;
@@ -677,7 +677,7 @@ var EZSprites = (function(){
             transform.sx = scaleX;
             transform.sy = scaleY !== undefined ? scaleY : scaleX;
         },
-        popTransform : function(){
+        popWorld : function(){
             if(tStackTop > 0){
                 tStackTop -= 1;
                 t = transformStack[tStackTop];

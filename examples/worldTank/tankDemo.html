@@ -14,7 +14,7 @@
     
     
     <script>
-        var tankSpriteList = [{
+        const tankSpriteList = [{
                 "x" : 117,
                 "y" : 0,
                 "w" : 45,
@@ -51,6 +51,8 @@
                 "h" : 4
             }
         ];
+        const ZOOM_WHEEL_STEPS = 10;  // smaller numbers zooms more for each wheel step (MUST BE > 0 and evenly divisible into 120)
+        const ZOOM_AMOUNT = 1.1; // bigger numbers faster zoom
     
         mouseCanvas.start();
         var ctx = mouseCanvas.ctx;
@@ -65,7 +67,8 @@
             posY : 0,
             scale : 1,
         }
-        var mouseWorld = {x : 0,y :0};
+        var mouseWorld = {x : 0,y :0};  // world position of mouse
+        var currentWorld = {}; // to hold the decomposed world matrix
         
         
         var ezs = EZSprites.sprites;
@@ -143,19 +146,21 @@
                 if(mouse.buttonRaw & 4){
                     world.posX += mouse.x - mouse.lastX;
                     world.posY += mouse.y - mouse.lastY;
-                    
                     EZSprites.world.setPosition(world.posX,world.posY);
                     mouseWorld = EZSprites.world.screen2World(mouse.x,mouse.y,mouseWorld);
                 }
                 if(mouse.w !== 0){
                     if(mouse.w > 0){
-                        EZSprites.world.zoom2Screen(mouse.x,mouse.y,1.01,true);
-                        mouse.w -= 10
+                        EZSprites.world.zoom2Screen(mouse.x,mouse.y,ZOOM_AMOUNT,true);
+                        mouse.w -= ZOOM_WHEEL_STEPS;
                     }else{
-                        EZSprites.world.zoom2Screen(mouse.x,mouse.y,1.01,false);
-                        mouse.w += 10
+                        EZSprites.world.zoom2Screen(mouse.x,mouse.y,ZOOM_AMOUNT,false);
+                        mouse.w += ZOOM_WHEEL_STEPS
                     }
                     mouseWorld = EZSprites.world.screen2World(mouse.x,mouse.y,mouseWorld);
+                    EZSprites.world.getWorld(currentWorld);
+                    world.posX = currentWorld.x;
+                    world.posY = currentWorld.y;
                 }
                 for(var i = 0; i < tanks.length; i ++){
                     var t = tanks[i];
@@ -210,7 +215,7 @@
         EZSprites.context.setCtx(ctx);
 
         var spriteSheet = new Image();
-        spriteSheet.src = "tank.png";
+        spriteSheet.src = "../resources/tank.png";
         spriteSheet.onload = function(){
             // can only use the next function if you have COREs permission
             // var count = EZSprites.sprites.locateSprites(this);
