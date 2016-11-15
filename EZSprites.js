@@ -308,6 +308,8 @@ EZSprite properties
 ======================================================================================================================*/
 var EZSprites = (function(){
     "use strict";
+    const PI2 = Math.PI * 2;
+    const PI = Math.PI;
     var ctx;
     var ctxStack = [null, null, null, null, null, null, null, null, null];
     var ctxStackTop = 0;
@@ -353,7 +355,6 @@ var EZSprites = (function(){
         transform.sx = 1;
         transform.sy = 1;
         compModeStackTop = 0;
-
     }
     var compModesNames = { // darker // has limited support so not included 
         normal : "source-over",
@@ -385,7 +386,21 @@ var EZSprites = (function(){
     }
     var compModeStack = [];
     var compModeStackTop = 0;
-    var floodFillExtentAll = function (x, y, w, h, data, extent) { // return the extent of the fill
+    const getImageData = function(image,format){
+        var w,h,c,ct;
+        w = image.width;
+        h = image.height;
+        c = document.createElement("canvas");
+        c.width = w;
+        c.height = h;
+        ct = c.getContext("2d");
+        ct.drawImage(image,0,0);
+        if(format === "32bit"){
+            return new Uint32Array(ct.getImageData(0,0,w,h).data.buffer);            
+        }
+        return ct.getImageData(0,0,w,h).data;            
+    }
+    const floodFillExtentAll = function (x, y, w, h, data, extent) { // return the extent of the fill
 
         var stack = [];
         var lookLeft = false;
@@ -488,7 +503,7 @@ var EZSprites = (function(){
         }
         return extent;
     }        
-    var FX = {
+    const FX = {
         setCompMode : function(name){
             ctx.globalCompositeOperation = compModes[name];
         },
@@ -539,7 +554,77 @@ var EZSprites = (function(){
         copy :function(){ ctx.globalCompositeOperation =  "copy"; },
         xor : function(){ ctx.globalCompositeOperation = "xor"; },           
     }        
-    var context = {
+    const collision = {
+        createRadialPerimiterMap : function(image,spriteIndex,imageData, rCount = 32){
+            // creates a perimeter map of a sprite or image
+            // if the image has sprite then supply the spriteIndex
+            // rCount (radial count) is the number of radial segments. High segment count do not effect the performance
+            // for all but the full collision test.
+            var max,min,i,maxRadius,rad,xx,yy,ind,count,perimeter,val,mean,c,x,y,w,h,data,dw;
+            if(image.sprites !== undefined){
+                x = image.sprites[spriteIndex].x;
+                y = image.sprites[spriteIndex].y;
+                w = image.sprites[spriteIndex].w;
+                h = image.sprites[spriteIndex].h;                
+            }else{
+                x = 0;
+                y = 0;
+                w = image.width;
+                h = image.height;                
+            }
+            if(imageData !== undefined){
+                if(imageData.buffer === undefined){
+                    if(imageData.data !== undefined){
+                        data = new Uint32Array(imageData.data.buffer);
+                    }
+                }else{
+                    data = new Uint32Array(imageData.buffer);
+                }
+            }
+            if(data === undefined){
+                data = getImageData(image,"32bit");                
+            }
+            dw = image.width;
+
+            perimeter = {
+                dist :[],
+                min : undefined,
+                max : undefined,
+                mean : undefined,
+            };
+            max = -Infinity;
+            min = Infinity;
+            mean = 0;
+            c = 0;
+            maxRadius = Math.ceil(Math.sqrt(w*w+h*h)/2)+2;
+            for(i = 0; i < PI2; i += PI2/rCount, count ++){
+                rad = maxRadius;
+                do{
+                    xx = Math.round(Math.cos(i) * rad + x + w/2);
+                    yy = Math.round(Math.sin(i) * rad + y + h/2);
+                    if(xx >= x && xx < x+w && yy >= y && yy < y + h){
+                        ind = xx * 4 + yy * iw4;
+                        val = data[xx + yy * dw];
+                    }else{
+                        val = 0;
+                    }
+                    rad -= 1;
+                }while(val === 0 && rad > -1)
+                rad += 1;
+                min = Math.min(min,rad);
+                max = Math.max(max,rad);
+                mean += rad;
+                c += 1;
+                perimiter.dist.push(rad);
+            }
+            perimiter.max = max;
+            perimiter.min = min;
+            perimiter.mean = mean / c; 
+            return perimiter;
+        },
+        
+    }
+    const context = {
         setCtx : function(_ctx){
             ctx = _ctx;
             w = ctx.canvas.width;
@@ -609,7 +694,7 @@ var EZSprites = (function(){
             }
         },            
     }
-    var globalTransform = {
+    const globalTransform = {
         setWorld : function(originX,originY,scaleX,scaleY){
             transform.x = originX;
             transform.y = originY;
@@ -688,7 +773,7 @@ var EZSprites = (function(){
             }
         },
     }
-    var background = {
+    const background = {
         stretch : function(image,alpha = 1){
             ctx.setTransform(1,0,0,1,0,0);
             ctx.globalAlpha = alpha;
@@ -707,7 +792,7 @@ var EZSprites = (function(){
             ctx.drawImage(image,-image.width / 2, -image.height / 2);
         },
     }
-    var images = {
+    const images = {
         draw : function (image, x, y, scale, rotation, alpha) {
             ctx.setTransform(scale, 0, 0, scale, x, y);
             ctx.rotate(rotation);
@@ -772,7 +857,7 @@ var EZSprites = (function(){
             ctx.drawImage(image, 0, -image.heigh / 2, 1, image.height);
         },
     }
-    var sprites = {
+    const sprites = {
         draw : function (image, index, x, y, scale, rotation, alpha) {
             spr = image.sprites[index];
             ctx.setTransform(scale, 0, 0, scale, x, y);
@@ -1157,15 +1242,15 @@ var EZSprites = (function(){
     }
         
     
-    var API = {
+    const API = {
         resetAll : resetAll,
-        sprites : sprites,
-        images : images,
-        background : background,
-        FX : FX,
-        context : context,
-        world : globalTransform,
-        namedCompModes : compModesNames,
+        sprites : Object.freeze(sprites),
+        images : Object.freeze(images),
+        background : Object.freeze(background),
+        FX : Object.freeze(FX),
+        context : Object.freeze(context),
+        world : Object.freeze(globalTransform),
+        namedCompModes : Object.freeze(compModesNames),
     }
     resetAll();
     return API;        
