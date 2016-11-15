@@ -19,13 +19,15 @@ Its all about performance.
     
     Some of the functions in EZSprites have an optional return object (for example EZSprites.world.screen2World(x,y,retPosition)) if you do not supply the return object a new one is created for you and returned. If you do this every frame then you will add more work to the GC and degrade the performance. To avoid GC hits create the return object at the start of the game/level and use that same object every time you make that call. Never delete it.
     
-    EZSprites uses pools and static memory, 
+    **EZSprites uses pools and static memory** 
     
     > **Note:** Care has been taken to not hold references to object outside the control of EZSprite. Do not rely on EZSprites to hold references to images, context, or any objects unless they are on one of the various internal stacks. You must ensure that every function called that begins with `push` must have a associated `pop`
     
     > If you have a condition that may cause the code to stop using EZSprites at some point and you have lost track of what stacks you have used, call `EZSprites.resetAll` it will empty all the stacks and reassign static memory for any internal memory it needs. 
     
     > The stacks used are pre assigned 16 items. If you expect the depth of push,pop operations to be deeper than 16 call resetAll with the max depth you expect the stacks to be.
+    
+    
     
 
 
@@ -622,6 +624,83 @@ var EZSprites = (function(){
             perimiter.mean = mean / c; 
             return perimiter;
         },
+        testPerimiterCollision : function(image1,sprIndex1,x1,y1,s1,r1,image2,sprIndex2,x2,y2,s2,r2,details){
+            var dist,x,y,p1,p2,d1,d2,dir,dist1,dist2;
+            if(image1.sprites !== undefined){
+                p1 = image1.sprites[sprIndex1].perim;
+            }else{
+                p1 = image1.perim;
+            }
+            if(image2.sprites !== undefined){
+                p2 = image2.sprites[sprIndex2].perim;
+            }else{
+                p2 = image2.perim;
+            }
+            details.dx = x = x2-x1;
+            details.dy = y = y2-y1;
+            details.dist = dist = Math.sqrt(x*x + y*y);
+            if(dist < p1.max * s1 + p2.max * s2){
+                details.dir = dir = Math.atan2(y,x);
+                d1 = dir - r1;
+                d2 = dir + Math.PI - r2;
+                d1 = (((d1 % PI2) + PI2 ) % PI2) / PI2;
+                d2 = (((d2 % PI2) + PI2 ) % PI2) / PI2;
+                d1 = Math.round(d1 * p1.dist.length) % p1.dist.length;
+                d2 = Math.round(d2 * p2.dist.length) % p2.dist.length;
+                dist1 = p1.dist[d1] * s1;
+                dist2 = p2.dist[d2] * s2;
+                if(dist < dist1 + dist2){
+                    var rat = dist1 / (dist1 + dist2);
+                    var xx = x1 + x * rat;
+                    var yy = y1 + y * rat;
+                    x /= dist;
+                    y /= dist;
+                    details.x1 = xx - x * dist1;
+                    details.y1 = yy - y * dist1;
+                    details.d1 = dist1;
+                    details.x2 = xx + x * dist2;
+                    details.y2 = yy + y * dist2;
+                    details.d2 = dist2;
+                    details.cx = xx;
+                    details.cy = yy;
+                    details.dir = dir;    
+                    details.dist =dist1 + dist2;
+                    return true;
+                }
+            }
+            return false;
+        },        
+        testPerimiterCollisionSimple : function(image1,sprIndex1,x1,y1,s1,r1,image2,sprIndex2,x2,y2,s2,r2){
+            var dist,x,y,p1,p2,d1,d2,dir,dist1,dist2;
+            if(image1.sprites !== undefined){
+                p1 = image1.sprites[sprIndex1].perim;
+            }else{
+                p1 = image1.perim;
+            }
+            if(image2.sprites !== undefined){
+                p2 = image2.sprites[sprIndex2].perim;
+            }else{
+                p2 = image2.perim;
+            }
+            x = x2-x1;
+            y = y2-y1;
+            dist = Math.sqrt(x*x + y*y);
+            if(dist < p1.max * s1 + p2.max * s2){
+                dir = Math.atan2(y,x);
+                d1 = dir - r1;
+                d2 = dir + Math.PI - r2;
+                d1 = (((d1 % PI2) + PI2 ) % PI2) / PI2;
+                d2 = (((d2 % PI2) + PI2 ) % PI2) / PI2;
+                d1 = Math.round(d1 * p1.dist.length) % p1.dist.length;
+                d2 = Math.round(d2 * p2.dist.length) % p2.dist.length;
+                dist1 = p1.dist[d1] * s1;
+                dist2 = p2.dist[d2] * s2;
+                if(dist < dist1 + dist2){
+                    return true;
+                }
+            }
+            return false;
+        }        
         
     }
     const context = {
