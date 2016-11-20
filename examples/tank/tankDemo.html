@@ -2,18 +2,27 @@
 <html id="topDoc">
     <head>
         <meta http-equiv="Content-Type" content="text/html;charset=ISO-8859-8">
-        <title>QuickRun</title>
+        <title>EZSprites</title>
         <meta name="keywords" content="sprites, rendering 2D, javascript, game design, Mark Spronck" />
         <meta name="description" content="EZSprites.js a simple fast sprite rendering utility fot the 2D canvas API" />
         <meta name="author" content="Mark Spronck" />
+        <link rel="stylesheet" type="text/css" href="../demo.css">
+        <script src = "../Math_Chaser.js"></script>
+       
         <script src = "../../EZSprites.js"></script>
         <script src = "../mouseCanvas.js"></script>
+        <script src = "../demoCommon.js"></script>
+        
     </head>
     <body style="background:#44AA11;" id="doc">
     
     
     
     <script>
+        addExtras("Tank demo","Left click to add tanks.");
+        info.textContent = "How to use EZSprites to create local coordinates systems.";
+        sideMenu();
+
         var tankSpriteList = [{
                 "x" : 117,
                 "y" : 0,
@@ -143,21 +152,7 @@
                     drawTank(t);
                 }
                 EZSprites.context.setDefaults();
-                if(tanks.length < 20){
-                    ctx.font = "64px arial black";
-                    ctx.textAlign = "center";
-                    ctx.textbaseLine = "middle";
-                    ctx.lineJoin = "round";
-                    ctx.lineWidth = 4;
-                    ctx.fillStyle = "black";
-                    ctx.globalAlpha = 0.5;
-                    ctx.fillText("Click to add a tank!",w / 2 + 8, h * 0.3 + 8);
-                    ctx.fillStyle = "#7F4";
-                    ctx.strokeStyle = "#CF8";
-                    ctx.globalAlpha =1;
-                    ctx.strokeText("Click to add a tank!",w / 2, h * 0.3);
-                    ctx.fillText("Click to add a tank!",w / 2, h * 0.3);
-                }
+
             }            
         }
         function contextChanged(_ctx){
@@ -180,6 +175,7 @@
         }        
     
         mouseCanvas.addRender(renderTanks);
+        addForker();  
         mouseCanvas.addNotification(contextChanged);        
     
     </script>

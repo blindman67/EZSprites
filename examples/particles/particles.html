@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html id="topDoc">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=ISO-8859-8">
+        <title>EZSprites Particle test</title>
+        <meta name="keywords" content="sprites, rendering 2D, javascript, game design, Mark Spronck" />
+        <meta name="description" content="EZSprites.js a simple fast sprite rendering utility fot the 2D canvas API" />
+        <meta name="author" content="Mark Spronck" />
+        <link rel="stylesheet" type="text/css" href="../demo.css">
+        <script src = "../Math_Chaser.js"></script>
+        <script src = "../../EZSprites.js"></script>
+        <script src = "../fastStack.js"></script>
+        <script src = "../mouseCanvas.js"></script>
+        <script src = "../demoCommon.js"></script>
+    </head>
+    <body style="background:#035;" id="doc">
+    
+    
+    
+    <script>
+        addExtras("Particles Demo","Use mouse wheel to increase/decrease particle count.");
+        sideMenu();
+
+        
+        
+        
+    
+        const sparklesSprites = EZSprites.sprites.array2SpriteList([
+            0,	0,	16,	23,
+            17,	0,	16,	23,
+            34,	0,	16,	23,
+            51,	0,	20,	23,
+            72,	0,	19,	22,
+            92,	0,	18,	19,
+            111,	0,	18,	19,	
+            130,	0,	18,	19,	
+            149,	0,	16,	19,	
+            166,	0,	14,	18,	
+            181,	0,	18,	17,	
+            200,	0,	18,	17,	
+            219,	0,	18,	17,	
+            238,	0,	18,	16,	
+            257,	0,	14,	16,	
+            272,	0,	18,	16,	
+            291,	0,	14,	16,	
+            306,	0,	18,	16,	
+            325,	0,	14,	16,	
+            238,	17,	18,	15,	
+            166,	19,	13,	12,	
+            149,	20,	13,	12,	
+            257,	17,	13,	12,	
+            291,	17,	11,	11,	
+            325,	17,	11,	11,	
+            92,	20,	11,	11,
+            111,	20,	12,	11,	
+            130,	20,	11,	11,	
+            181,	18,	11,	11,	
+            200,	18,	11,	11,	
+            219,	18,	12,	10,	
+            272,	17,	12,	10,	
+            306,	17,	12,	10,	
+            72,	23,	8,	9,
+            0,	24,	11,	8,
+            17,	24,	7,	7,
+        ]);
+        const ZOOM_WHEEL_STEPS = 1;  // smaller numbers zooms more for each wheel step (MUST BE > 0 and evenly divisible into 120)
+        const ZOOM_AMOUNT = 1.1; // bigger numbers faster zoom
+    
+        mouseCanvas.start();
+        var ctx = mouseCanvas.ctx;
+        var canvas = mouseCanvas.canvas;
+        var mouse = mouseCanvas.mouse;
+        var w = canvas.width;
+        var h = canvas.height;
+        var cw = w / 2;  // center 
+        var ch = h / 2;
+        var world = {
+            posX : 0,
+            posY : 0,
+            scale : 1,
+        }
+        var mouseWorld = {x : 0,y :0};  // world position of mouse
+        var currentWorld = {}; // to hold the decomposed world matrix
+        
+        //=====================================================================================
+        // setup short cuts to ezsprites
+        var ezs = EZSprites.sprites;
+        var sDraw = ezs.draw;
+        //=====================================================================================
+        // particles uses fastStack 
+        var maxParticles = 12000;
+        var particle = {  // Defines particle
+            x : 0,
+            y : 0,
+            r : 0,
+            dx : 0,
+            dy : 0,
+            dr : 0,
+            s : 1,
+            spr : 0,
+            life : undefined,
+            maxLife : 0
+        };
+        // create a fastStack array. This is to prevent GC hits that can devastate performance.
+        // Fast stack is a static object pool. All particles are predefined and never deleted
+        // thus there is Zero GC overhead when creating particles.
+        particles = [].fastStack(maxParticles,particle,"life");
+        var p,d,s
+        function addP(x,y,spr){  // add a particle
+            p = particles.fNextFree();
+            if(particles.fLength >= particleCount || p === undefined){ // no room for more
+                return;
+            }
+            p.x = x;
+            p.y = y;
+            p.spr = spr;
+            p.life = 100;
+            p.s = Math.random() + Math.random() + Math.random() +0.1
+            d = Math.random() * Math.PI * 2;
+            s = Math.random() * Math.PI * 2;
+            p.dx = Math.cos(d) * s;
+            p.dy = Math.sin(d) * s;
+            p.dr = Math.random()-0.5;
+            p.maxLife = p.life = Math.max(100,particleCount/ 2)-spr;
+        }
+        var s;
+        function updateDrawP(p,i){  // Draws a particle.
+            if(i >= particleCount){
+                p.life = undefined;
+                return;
+            }
+            s =  p.life/p.maxLife;
+            p.x += p.dx * s;
+            p.y += p.dy * s;
+            p.r += p.dr;
+            p.life -= 1;
+            
+            if(p.life <= 0){
+                p.life = undefined;
+                return;
+            }
+            renderCount += 1;
+            sDraw(spriteSheet, p.spr, p.x, p.y, p.s, p.r, s);
+        }
+        
+        var renderCount = 0;
+        var fxId = 0;
+        var lastTime;
+        var frameTime = 0;
+        var minParticles = 100;
+        var particleCount = minParticles;
+        var frameCount = 0;  // total number of sprite rendering frames
+
+
+        // main update function
+        function renderAll(time){
+            var tx,ty,i;
+            if(lastTime !== undefined){
+                frameTime = time-lastTime;
+            }
+            lastTime = time;    
+            ctx.setTransform(1,0,0,1,0,0); // reset transform
+            ctx.globalAlpha = 1;           // reset alpha
+            ctx.clearRect(0,0,w,h);
+            if(spriteSheet.sprites){
+                
+                mouseWorld = EZSprites.world.screen2World(mouse.x,mouse.y,mouseWorld);
+                if(mouse.w !== 0){
+                    if(mouse.w > 0){
+                        particleCount += 1;
+                        mouse.w -= ZOOM_WHEEL_STEPS;
+                    }else{
+                        particleCount -= 1;
+                        mouse.w += ZOOM_WHEEL_STEPS
+                    }
+                }
+
+                renderCount = 0;
+                particles.fEach(updateDrawP);
+
+                EZSprites.context.setDefaults();
+             
+                var str = "Particles Requested : "+particleCount + " Rendering : " +renderCount + " FPS " + (1000/frameTime).toFixed(0) 
+                info.textContent = str;
+               
+     
+                if(particleCount <= maxParticles){
+                    particles.fMaxLength = particleCount;
+                }
+                i = 0;
+                while(renderCount + i < particleCount && i < Math.min(10,particleCount/10)){
+                    addP(mouse.x,mouse.y,(i++)+(frameCount%20));
+                }
+                frameCount += 1;
+            }     
+            mouse.lastX = mouse.x;
+            mouse.lastY = mouse.y;
+            
+            
+            
+            
+        }
+        function contextChanged(_ctx){
+            EZSprites.context.setCtx(_ctx);
+            ctx = _ctx;
+            canvas = ctx.canvas;
+            w = canvas.width;
+            h = canvas.height;            
+        }
+        EZSprites.context.setCtx(ctx);
+
+        var spriteSheet = new Image();
+        spriteSheet.src = "../resources/sparkles.png";
+        spriteSheet.onload = function(){
+            // can only use the next function if you have COREs permission
+            // var count = EZSprites.sprites.locateSprites(this);
+            
+            // Or create a sprite list and attach it.
+            spriteSheet.sprites = sparklesSprites;
+        }        
+    
+        mouseCanvas.addRender(renderAll);
+        addForker();        
+        mouseCanvas.addNotification(contextChanged);
+    
+    </script>
+    </body>
+</html>
+
+
+
+

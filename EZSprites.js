@@ -318,7 +318,13 @@ var EZSprites = (function(){
     var w,h;    // width and height
     var _x, _y, _x1, _y1, _dist;  // work variables
     var sw, sh, sw1, sh1; // work vars (sprite width and height)
-    var spr,t; // work var
+    var spr,t,ct,ctH,ctI,ctIH; // work  ct for currentTranform and ctH currentTranformHardware copy
+    // I have tested both FF and Chrome Nov 2016 and found that both can draw sprites quicker if the
+    // rotation is calculated rather than use the function ctx.rotate(rot). The difference is small 2/1000000th second
+    // but why not do it best.
+    var xdx,xdy; // for rotation and scale.
+    
+    
     var transform = {
         x : 0,
         y : 0,
@@ -327,6 +333,11 @@ var EZSprites = (function(){
     }
     var transformStack = [];
     var tStackTop = 0;
+    var heldTransform;
+    var heldTransformInv;
+    var currentTransformStack = [];
+    var ctStackTop = 0;
+    
     var local = { // local transform
         x : 0,
         y : 0,
@@ -386,6 +397,27 @@ var EZSprites = (function(){
         copy : "copy",
         xor : "xor",
     }
+    var compModeFXNames = {
+        normal : "source-over",
+        lighter : "lighter",
+        glow : "lighter",
+        fire : "lighter",
+        multiply : "multiply",
+        screen : "screen",
+        colorDodge : "color-dodge",
+        colorBurn : "color-burn",
+        hardLight : "hard-light",
+        softLight : "soft-light",
+        overlay : "overlay",
+        difference : "difference",
+        exclution : "exclusion",
+        hue : "hue",
+        saturation : "saturation",
+        color : "color",
+        luminosity : "luminosity",
+    }
+        
+    var FXNames = Object.keys(compModeFXNames);
     var compModeStack = [];
     var compModeStackTop = 0;
     const getImageData = function(image,format){
@@ -527,7 +559,8 @@ var EZSprites = (function(){
         },
         filterMoz : function(val){
             ctx.mozImageSmoothingEnabled = val === true;
-        },         
+        },    
+        namedFX :  FXNames,      
         normal : function(){ ctx.globalCompositeOperation = "source-over"; },
         sourceOver : function(){ ctx.globalCompositeOperation = "source-over"; },
         lighter : function(){ ctx.globalCompositeOperation = "lighter"; },
@@ -555,7 +588,8 @@ var EZSprites = (function(){
         destinationOut : function(){ ctx.globalCompositeOperation = "destination-out"; },
         copy :function(){ ctx.globalCompositeOperation =  "copy"; },
         xor : function(){ ctx.globalCompositeOperation = "xor"; },           
-    }        
+    }     
+  
     const collision = {
         createRadialPerimiterMap : function(image,spriteIndex,imageData, rCount = 32){
             // creates a perimeter map of a sprite or image
@@ -771,7 +805,65 @@ var EZSprites = (function(){
                 ctx.setTransform(local.scaleX,0,0,local.scaleY,local.x,local.y);
                 ctx.rotate(local.rotate);
             }
-        },            
+        }, 
+        transform : {
+            pushCurrent : function(){
+                ct = currentTransformsStack[ctStackTop];
+                ctH = ctx.currentTransform;
+                if(ct === undefined){
+                    currentTransformsStack[ctStackTop++] = ctH;
+                    return;
+                }
+                ct.a = ctH.a;
+                ct.b = ctH.b;
+                ct.c = ctH.c;
+                ct.d = ctH.d;
+                ct.e = ctH.e;
+                ct.f = ctH.f;
+            },
+            popCurrent : function(){
+                if(ctStackTop > 0){
+                    var ct = currentTransformsStack[ctStackTop--];
+                    ctx.currentTransform = ct;
+                }
+            },
+            storeCurrent : function(){
+                ctH = ctx.currentTransform;
+                heldTransform.a = ctH.a;
+                heldTransform.b = ctH.b;
+                heldTransform.c = ctH.c;
+                heldTransform.d = ctH.d;
+                heldTransform.e = ctH.e;
+                heldTransform.f = ctH.f;
+            },
+            recallCurrent : function(){
+                ctx.currentTransform = heldTransform;
+            },
+            local2Screen : function(x,y,result){
+                if(result === undefined){
+                    result = {};
+                }
+                ctH = ctx.currentTransform;
+                result.x = x * ctH.a + y * ctH.c + ctH.e;
+                result.y = x * ctH.b + y * ctH.d + ctH.f;
+                return result;
+            },
+            screen2Local : function(x,y,result){
+                if(result === undefined){
+                    result = {};
+                }
+                ctIH = ctx.currentTransform.inverse();
+                result.x = x * ctIH.a + y * ctIH.c + ctIH.e;
+                result.y = x * ctIH.b + y * ctIH.d + ctIH.f;
+                return result;
+            }
+            
+            
+        },
+        transformMoz : {
+
+            
+        }
     }
     const globalTransform = {
         setWorld : function(originX,originY,scaleX,scaleY){
@@ -871,23 +963,27 @@ var EZSprites = (function(){
             ctx.drawImage(image,-image.width / 2, -image.height / 2);
         },
     }
+    
     const images = {
         draw : function (image, x, y, scale, rotation, alpha) {
-            ctx.setTransform(scale, 0, 0, scale, x, y);
-            ctx.rotate(rotation);
+            xdx = Math.cos(rotation) * scale;
+            xdy = Math.sin(rotation) * scale;
+            ctx.setTransform(xdx, xdy, -xdy, xdx, x, y);
             ctx.globalAlpha = alpha;
             ctx.drawImage(image, -image.width / 2, -image.height / 2);
         },
         drawWorld : function (image, x, y, scale, rotation, alpha) {
             ctx.setTransform(transform.sx, 0, 0, transform.sy, transform.x, transform.y);
-            ctx.transform(scale, 0, 0, scale, x, y);
-            ctx.rotate(rotation);
+            xdx = Math.cos(rotation) * scale;
+            xdy = Math.sin(rotation) * scale;
+            ctx.transform(xdx, xdy, -xdy, xdx, x, y);
             ctx.globalAlpha = alpha;
             ctx.drawImage(image, -image.width / 2, -image.height / 2);
         },
         drawLocal : function (image, x, y, scale, rotation, alpha) {
-            ctx.transform(scale, 0, 0, scale, x, y);
-            ctx.rotate(rotation);
+            xdx = Math.cos(rotation) * scale;
+            xdy = Math.sin(rotation) * scale;
+            ctx.transform(xdx, xdy, -xdy, xdx, x, y);
             ctx.globalAlpha = alpha;
             ctx.drawImage(image, -image.width / 2, -image.height / 2);
         },
@@ -899,7 +995,7 @@ var EZSprites = (function(){
         },
         drawWorldCenterScaled : function (image, x, y, centerX, centerY, scaleX, scaleY, rotate, alpha) {
             ctx.setTransform(transform.sx, 0, 0, transform.sy, transform.x, transform.y);
-            ctx.setTransform(scaleX, 0, 0, scaleY, x, y);
+            ctx.transform(scaleX, 0, 0, scaleY, x, y);
             ctx.rotate(rotation);
             ctx.globalAlpha = alpha;
             ctx.drawImage(image, -centerX, -centerY);
@@ -939,8 +1035,9 @@ var EZSprites = (function(){
     const sprites = {
         draw : function (image, index, x, y, scale, rotation, alpha) {
             spr = image.sprites[index];
-            ctx.setTransform(scale, 0, 0, scale, x, y);
-            ctx.rotate(rotation);
+            xdx = Math.cos(rotation) * scale;
+            xdy = Math.sin(rotation) * scale;
+            ctx.setTransform(xdx, xdy, -xdy, xdx, x, y);
             ctx.globalAlpha = alpha;
             sh = spr.h;
             sw = spr.w;
@@ -957,8 +1054,9 @@ var EZSprites = (function(){
             sh = spr.h;
             sw = spr.w;
             ctx.setTransform(transform.sx, 0, 0, transform.sy, transform.x, transform.y);
-            ctx.transform(scale, 0, 0, scale, x, y);
-            ctx.rotate(rotation);
+            xdx = Math.cos(rotation) * scale;
+            xdy = Math.sin(rotation) * scale;
+            ctx.transform(xdx, xdy, -xdy, xdx, x, y);
             ctx.globalAlpha = alpha;
             if(spr.vx !== undefined){  // virtual sprite dimensions
                 _x = -spr.vw / 2 + spr.vx;
@@ -972,8 +1070,9 @@ var EZSprites = (function(){
             spr = image.sprites[index];
             sh = spr.h;
             sw = spr.w;
-            ctx.transform(scale, 0, 0, scale, x, y);
-            ctx.rotate(rotation);
+            xdx = Math.cos(rotation) * scale;
+            xdy = Math.sin(rotation) * scale;
+            ctx.transform(xdx, xdy, -xdy, xdx, x, y);
             ctx.globalAlpha = alpha;
             if(spr.vx !== undefined){  // virtual sprite dimensions
                 _x = -spr.vw / 2 + spr.vx;
@@ -990,8 +1089,10 @@ var EZSprites = (function(){
             var spriteList = image.sprites;
             _x1 = tiles.xSize === undefined ? spriteList[map[0]].w : tiles.xSize;
             _y1 = tiles.ySize === undefined ? spriteList[map[0]].h : tiles.ySize;
-            ctx.setTransform(scale, 0, 0, scale, x, y);
-            ctx.rotate(rotation);
+            xdx = Math.cos(rotation) * scale;
+            xdy = Math.sin(rotation) * scale;
+            ctx.setTransform(xdx, xdy, -xdy, xdx, x, y);
+
             ctx.globalAlpha = alpha;           
             for(_y = 0; _y < tiles.height; _y+= 1){
                 for(_x = 0; _x < tiles.width; _x+= 1){
@@ -1009,8 +1110,9 @@ var EZSprites = (function(){
             var spriteList = image.sprites;
             _x1 = tiles.xSize === undefined ? spriteList[map[0]].w : tiles.xSize;
             _y1 = tiles.ySize === undefined ? spriteList[map[0]].h : tiles.ySize;
-            ctx.transform(scale, 0, 0, scale, x, y);
-            ctx.rotate(rotation);
+            xdx = Math.cos(rotation) * scale;
+            xdy = Math.sin(rotation) * scale;
+            ctx.transform(xdx, xdy, -xdy, xdx, x, y);
             ctx.globalAlpha = alpha;           
             for(_y = 0; _y < tiles.height; _y+= 1){
                 for(_x = 0; _x < tiles.width; _x+= 1){
@@ -1029,8 +1131,9 @@ var EZSprites = (function(){
             _x1 = tiles.xSize === undefined ? spriteList[map[0]].w : tiles.xSize;
             _y1 = tiles.ySize === undefined ? spriteList[map[0]].h : tiles.ySize;
             ctx.setTransform(transform.sx, 0, 0, transform.sy, transform.x, transform.y);
-            ctx.transform(scale, 0, 0, scale, x, y);
-            ctx.rotate(rotation);
+            xdx = Math.cos(rotation) * scale;
+            xdy = Math.sin(rotation) * scale;
+            ctx.transform(xdx, xdy, -xdy, xdx, x, y);
             ctx.globalAlpha = alpha;           
             for(_y = 0; _y < tiles.height; _y+= 1){
                 for(_x = 0; _x < tiles.width; _x+= 1){
@@ -1312,13 +1415,46 @@ var EZSprites = (function(){
             }
             image.sprites = sprites;
             return image;
+        },
+        array2SpriteList : function(array){
+            var i,j,s,sprites;
+            sprites = [];
+            j=i = 0;
+            while(i < array.length){
+                sprites[j++] = s= {};
+                if(Array.isArray(array[i])){
+                    s.x = array[i][0];
+                    s.y = array[i][1];
+                    s.w = array[i][2];
+                    s.h = array[i++][3];
+                }else{
+                    s.x = array[i++];
+                    s.y = array[i++];
+                    s.w = array[i++];
+                    s.h = array[i++];
+                }
+            }
+            return sprites;
         }
     }
     // setup any context specific functionality.
-    
-    if(document.createElement("canvas").getContext("2d").mozImageSmoothingEnabled !== undefined){
-        FX.filter = FX.filterMoz;
+    function correctForContext(){
+        var tempCtx = document.createElement("canvas").getContext("2d")
+        if(tempCtx.mozImageSmoothingEnabled !== undefined){
+            FX.filter = FX.filterMoz;
+        }
+        if(tempCtx.mozCurrentTransform !== undefined){
+            context.transform = context.transformMoz;
+            heldTransform = tempCtx.mozCurrentTransform;
+        }else if(tempCtx.currentTransform !== undefined){
+            heldTransform = tempCtx.currentTransform;
+        }else{
+            
+        }
+        context.transformMoz = null; // prevent misuse
+        FX.filterMoz = null;         // prevent misuse
     }
+    correctForContext();
         
     
     const API = {
@@ -1329,7 +1465,6 @@ var EZSprites = (function(){
         FX : Object.freeze(FX),
         context : Object.freeze(context),
         world : Object.freeze(globalTransform),
-        namedCompModes : Object.freeze(compModesNames),
     }
     resetAll();
     return API;        

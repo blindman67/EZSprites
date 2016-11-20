@@ -143,12 +143,20 @@ var mouseCanvas = (function(){
     var stop = false;
 
     function update(timer) { // Main update loop
-        for(var i = 0; i < renderList.length; i ++){
-            renderList[i](timer,ctx, w, h);            
-        }
+        var i;
         if(!stop){
             requestAnimationFrame(update);
         }
+        for(i = 0; i < renderList.length; i ++){
+            renderList[i].func(timer,ctx,renderList[i], w, h); 
+            if(renderList[i].close === true){
+                console.log("Remove render");
+                renderList.splice(i,1);
+                i-=1;
+            }
+            
+        }
+
     }
     return {
         start : function(){
@@ -162,7 +170,9 @@ var mouseCanvas = (function(){
         },
         stop : function(){stop = true;},
         addRender : function(renderFunction){
-            renderList.push(renderFunction);
+            renderList.push({
+                func : renderFunction,
+            });
         },
         addNotification : function(notifyFunction){
             notificationList.push(notifyFunction);
