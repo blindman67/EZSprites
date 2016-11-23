@@ -316,6 +316,7 @@ var EZSprites = (function(){
     var ctxStack = [null, null, null, null, null, null, null, null, null];
     var ctxStackTop = 0;
     var w,h;    // width and height
+    var m1,m2; // m for matrix. Work variable for matrix math
     var _x, _y, _x1, _y1, _dist;  // work variables
     var sw, sh, sw1, sh1; // work vars (sprite width and height)
     var spr,t,ct,ctH,ctI,ctIH; // work  ct for currentTranform and ctH currentTranformHardware copy
@@ -865,6 +866,163 @@ var EZSprites = (function(){
             
         }
     }
+    /******************************************************************************************
+     * Functions for named links.
+     * Named links provide a more convenient structure when using links.
+     ******************************************************************************************/
+    const updateLink = function(){
+        xdx = Math.cos(this.rotate) * this.scale;
+        xdy = Math.sin(this.rotate) * this.scale;
+        _x = this.x;
+        _y = this.y;
+        if(this.parent){
+            m1 = this.parent.transform;
+            m2 = this.transform;
+            m2.a = m1.a *  xdx + m1.c * xdy;
+            m2.b = m1.b *  xdx + m1.d * xdy;
+            m2.c = m1.a * -xdy + m1.c * xdx;
+            m2.d = m1.b * -xdy + m1.d * xdx;
+            m2.e = m1.a * _x + m1.c * _y + m1.e;
+            m2.f = m1.b * _x + m1.d * _y + m1.f;
+        }else{
+            this.transform.a = xdx;
+            this.transform.b = xdy;
+            this.transform.c = -xdy;
+            this.transform.d = xdx;
+            this.transform.e = _x;
+            this.transform.f = _y;
+        }
+        return this;
+    }
+    const setTransformLink = function(){
+        m1 = this.transform;
+        ctx.setTransform(m1.a, m1.b, m1.c, m1.d, m1.e, m1.f);
+    }    
+    const addNamed = function(name,parent,x,y,scale,rotate){
+        var link = this[name]; 
+        if(link !== undefined){
+            throw new ReferenceError("Can not add named link a link named'"+name+"' already exists");
+        }                
+        if(typeof parent === "string"){ // could be a name
+            if(this[parent] !== undefined){
+                parent = this[parent];
+            }else{
+                throw new ReferenceError("Parent named '"+parent+"' could not be found");
+            }
+        }
+        this.names.push(name);
+        link = this[name] = {};
+        link.parent = parent;
+        link.x = x;
+        link.y = y;
+        link.scale = scale;
+        link.rotate = rotate;
+        xdx = Math.cos(rotate) * scale;
+        xdy = Math.sin(rotate) * scale;
+        link.transform = {};
+        if(parent !== undefined){
+            m1 = parent.transform;
+            m2 = link.transform;
+            m2.a = m1.a *  xdx + m1.c * xdy;
+            m2.b = m1.b *  xdx + m1.d * xdy;
+            m2.c = m1.a * -xdy + m1.c * xdx;
+            m2.d = m1.b * -xdy + m1.d * xdx;
+            m2.e = m1.a * x + m1.c * y + m1.e;
+            m2.f = m1.b * x + m1.d * y + m1.f;
+        }else{
+            link.transform.a = xdx;
+            link.transform.b = xdy;
+            link.transform.c = -xdy;
+            link.transform.d = xdx;
+            link.transform.e = x;
+            link.transform.f = y;
+        }
+        link.update = updateLink.bind(link);
+        link.setTransform = setTransform.bind(link);
+        return link;                    
+    }
+
+    
+    const links = {
+        create : function(x,y,scale,rotate){
+            var link = {};
+            link.x = x;
+            link.y = y;
+            link.scale = scale;
+            link.rotate = rotate;
+            xdx = Math.cos(rotate) * scale;
+            xdy = Math.sin(rotate) * scale;
+            link.transform = {};
+            link.transform.a = xdx;
+            link.transform.b = xdy;
+            link.transform.c = -xdy;
+            link.transform.d = xdx;
+            link.transform.e = x;
+            link.transform.f = y;
+            return link;
+        },
+        makeNameable : function(link){
+            link.names = []; // holds array of the names
+            link.addNamed = links.addNamed.bind(link);
+        },
+        add : function(parent,x,y,scale,rotate){
+            var link = {};
+            link.parent = parent;
+            link.x = x;
+            link.y = y;
+            link.scale = scale;
+            link.rotate = rotate;
+            xdx = Math.cos(rotate) * scale;
+            xdy = Math.sin(rotate) * scale;
+            link.transform = {};
+            if(parent !== undefined){
+                m1 = parent.transform;
+                m2 = link.transform;
+                m2.a = m1.a *  xdx + m1.c * xdy;
+                m2.b = m1.b *  xdx + m1.d * xdy;
+                m2.c = m1.a * -xdy + m1.c * xdx;
+                m2.d = m1.b * -xdy + m1.d * xdx;
+                m2.e = m1.a * x + m1.c * y + m1.e;
+                m2.f = m1.b * x + m1.d * y + m1.f;
+            }else{
+                link.transform.a = xdx;
+                link.transform.b = xdy;
+                link.transform.c = -xdy;
+                link.transform.d = xdx;
+                link.transform.e = x;
+                link.transform.f = y;
+            }
+            return link;                    
+        },
+        update : function(link){
+            xdx = Math.cos(link.rotate) * link.scale;
+            xdy = Math.sin(link.rotate) * link.scale;
+            _x = link.x;
+            _y = link.y;
+            if(link.parent){
+                m1 = link.parent.transform;
+                m2 = link.transform;
+                m2.a = m1.a *  xdx + m1.c * xdy;
+                m2.b = m1.b *  xdx + m1.d * xdy;
+                m2.c = m1.a * -xdy + m1.c * xdx;
+                m2.d = m1.b * -xdy + m1.d * xdx;
+                m2.e = m1.a * _x + m1.c * _y + m1.e;
+                m2.f = m1.b * _x + m1.d * _y + m1.f;
+            }else{
+                link.transform.a = xdx;
+                link.transform.b = xdy;
+                link.transform.c = -xdy;
+                link.transform.d = xdx;
+                link.transform.e = _x;
+                link.transform.f = _y;
+            }
+            return link;
+        },
+        setTransform : function(link){
+            m1 = link.transform;
+            ctx.setTransform(m1.a, m1.b, m1.c, m1.d, m1.e, m1.f);
+        }
+    };
     const globalTransform = {
         setWorld : function(originX,originY,scaleX,scaleY){
             transform.x = originX;
@@ -963,7 +1121,6 @@ var EZSprites = (function(){
             ctx.drawImage(image,-image.width / 2, -image.height / 2);
         },
     }
-    
     const images = {
         draw : function (image, x, y, scale, rotation, alpha) {
             xdx = Math.cos(rotation) * scale;
@@ -1046,7 +1203,11 @@ var EZSprites = (function(){
                 _y = -spr.vh / 2 + spr.vy;
                 ctx.drawImage(image, spr.x, spr.y, sw, sh, _x, _y, sw, sh);
                 return;
+            }else if(spr.cx !== undefined){
+                ctx.drawImage(image, spr.x, spr.y, sw, sh, -spr.cx, -spr.cy, sw, sh);
+                return;
             }
+
             ctx.drawImage(image, spr.x, spr.y, sw, sh, -sw / 2, -sh / 2, sw, sh);
         },
         drawWorld : function (image, index, x, y, scale, rotation, alpha) {
@@ -1063,7 +1224,12 @@ var EZSprites = (function(){
                 _y = -spr.vh / 2 + spr.vy;
                 ctx.drawImage(image, spr.x, spr.y, sw, sh, _x, _y, sw, sh);
                 return;
+            }else if(spr.cx !== undefined){
+                ctx.drawImage(image, spr.x, spr.y, sw, sh, -spr.cx, -spr.cy, sw, sh);
+                return;
             }
+
+            
             ctx.drawImage(image, spr.x, spr.y, sw, sh, -sw / 2, -sh / 2, sw, sh);
         },
         drawLocal : function (image, index, x, y, scale, rotation, alpha) {
@@ -1078,6 +1244,9 @@ var EZSprites = (function(){
                 _x = -spr.vw / 2 + spr.vx;
                 _y = -spr.vh / 2 + spr.vy;
                 ctx.drawImage(image, spr.x, spr.y, sw, sh, _x, _y, sw, sh);
+                return;
+            }else if(spr.cx !== undefined){
+                ctx.drawImage(image, spr.x, spr.y, sw, sh, -spr.cx, -spr.cy, sw, sh);
                 return;
             }
             ctx.drawImage(image, spr.x, spr.y, sw, sh, -sw / 2, -sh / 2, sw, sh);
@@ -1437,8 +1606,7 @@ var EZSprites = (function(){
             return sprites;
         }
     }
-    // setup any context specific functionality.
-    function correctForContext(){
+    function correctForContext(){// setup any context specific functionality.
         var tempCtx = document.createElement("canvas").getContext("2d")
         if(tempCtx.mozImageSmoothingEnabled !== undefined){
             FX.filter = FX.filterMoz;
@@ -1465,6 +1633,7 @@ var EZSprites = (function(){
         FX : Object.freeze(FX),
         context : Object.freeze(context),
         world : Object.freeze(globalTransform),
+        links : Object.freeze(links),
     }
     resetAll();
     return API;        

@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html id="topDoc">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=ISO-8859-8">
+        <title>EZSprites Linking test</title>
+        <meta name="keywords" content="sprites, rendering 2D, javascript, game design, Mark Spronck" />
+        <meta name="description" content="EZSprites.js a simple fast sprite rendering utility for the 2D canvas API" />
+        <meta name="author" content="Mark Spronck" />
+        <link rel="stylesheet" type="text/css" href="../demo.css">
+        <script src = "../Math_Chaser.js"></script>
+        <script src = "../../EZSprites.js"></script>
+        <script src = "../fastStack.js"></script>
+        <script src = "../mouseCanvas.js"></script>
+        <script src = "../demoCommon.js"></script>
+    </head>
+    <body style="background:#530;" id="doc">
+    
+    
+    
+    <script>
+        addExtras("Linking Sprites Demo","This example uses the EZSprites.links interface to link many sprites.");
+        sideMenu();
+
+        
+        const ZOOM_WHEEL_STEPS = 1;  // smaller numbers zooms more for each wheel step (MUST BE > 0 and evenly divisible into 120)
+        const ZOOM_AMOUNT = 1.1; // bigger numbers faster zoom
+    
+        mouseCanvas.start();
+        var ctx = mouseCanvas.ctx;
+        var canvas = mouseCanvas.canvas;
+        var mouse = mouseCanvas.mouse;
+        var w = canvas.width;
+        var h = canvas.height;
+        var cw = w / 2;  // center 
+        var ch = h / 2;
+        var world = {
+            posX : 0,
+            posY : 0,
+            scale : 1,
+        }
+        var mouseWorld = {x : 0,y :0};  // world position of mouse
+        var currentWorld = {}; // to hold the decomposed world matrix
+        
+        //=====================================================================================
+        // setup short cuts to ezsprites
+        var ezs = EZSprites.sprites;
+        var sDraw = ezs.draw;
+        //=====================================================================================
+        // create linked sprites
+        
+        var springy = 1;
+        var springAdd = 0.5;
+        var springStart = 1;
+        var springInStart = 0.6;
+        var scale = 0.8;
+        var lastLink;
+        var branch,branch1;
+        
+        // Create the base of the link tree        
+        var base = EZSprites.links.create(100,ch,1,0);
+        // Add array to hold all the associated linked nodes
+        base.links = [];  
+        // add a link
+        lastLink = base.links[base.links.length] = EZSprites.links.add(base,256,0,0.7,0);
+        lastLink.springy = mMath.easeInOut(springInStart,springy);
+        springy += springAdd;
+        // add another link. This link will have some branches so remember it
+        branch1 = lastLink = base.links[base.links.length] = EZSprites.links.add(lastLink,256,0,0.7,0);
+        lastLink.springy = mMath.easeInOut(springInStart,springy);
+        springy += springAdd;
+        
+        branch = lastLink = base.links[base.links.length] = EZSprites.links.add(lastLink,256,0,0.7,0);
+        lastLink.springy = mMath.easeInOut(springInStart,springy);
+        springy += springAdd;
+        for(var i = 0; i < 8; i++){
+            lastLink = base.links[base.links.length] = EZSprites.links.add(lastLink,256,0,scale,0);
+            lastLink.springy = mMath.easeInOut(springInStart,springy);
+            springy += springAdd;
+        }
+            
+        springy = springStart
+        lastLink = base.links[base.links.length] = EZSprites.links.add(branch1,128,-64,scale,-0.75);
+        lastLink.branch = true;
+        lastLink.springy = mMath.easeInOut(springInStart,springy);
+        springy += springAdd;
+        for(var i = 0; i < 9; i++){
+            lastLink = base.links[base.links.length] = EZSprites.links.add(lastLink,256,0,scale,0);
+            lastLink.springy = mMath.easeInOut(springInStart,springy);
+            springy += springAdd;
+        }
+
+
+        
+        springy = springStart
+        lastLink = base.links[base.links.length] = EZSprites.links.add(branch1,128,64,scale,0.75);
+        lastLink.branch = true;
+        lastLink.springy = mMath.easeInOut(springInStart,springy);
+        springy += springAdd;
+        for(var i = 0; i < 9; i++){
+            lastLink = base.links[base.links.length] = EZSprites.links.add(lastLink,256,0,scale,0);
+            lastLink.springy = mMath.easeInOut(springInStart,springy);
+            springy += springAdd;
+        }
+        
+        springy = springStart
+        lastLink = base.links[base.links.length] = EZSprites.links.add(branch,128,-64,scale,-0.5);
+        lastLink.branch = true;
+        lastLink.springy = mMath.easeInOut(springInStart,springy);
+        springy += springAdd;
+        for(var i = 0; i < 9; i++){
+            lastLink = base.links[base.links.length] = EZSprites.links.add(lastLink,256,0,scale,0);
+            lastLink.springy = mMath.easeInOut(springInStart,springy);
+            springy += springAdd;
+        }
+        
+        
+        springy = springStart
+        lastLink = base.links[base.links.length] = EZSprites.links.add(branch,128,64,scale,0.5);
+        lastLink.branch = true;
+        lastLink.springy = mMath.easeInOut(springInStart,springy);
+        springy += springAdd;
+        for(var i = 0; i < 9; i++){
+            lastLink = base.links[base.links.length] = EZSprites.links.add(lastLink,256,0,scale,0);
+            lastLink.springy = mMath.easeInOut(springInStart,springy);
+            springy += springAdd;
+        }
+        
+        base.angle = new Chaser(0,0.5,0.5);
+        for(var i = 0; i < base.links.length; i++){  
+            if(base.links[i].springy){
+                base.links[i].angle = new Chaser(0,0.1,base.links[i].springy);
+            }else{
+                base.links[i].angle = new Chaser(0,0.1,0.5);
+            }
+            base.links[i].position = new Chaser(0,0.5,0.5);
+        }
+        
+        
+        
+        var renderCount = 0;
+        var fxId = 0;
+        var lastTime;
+        var frameTime = 0;
+        var frameCount = 0;  // total number of sprite rendering frames
+
+
+        // main update function
+        function renderAll(time){
+            var tx,ty,i;
+            if(lastTime !== undefined){
+                frameTime = time-lastTime;
+            }
+            lastTime = time;    
+            ctx.setTransform(1,0,0,1,0,0); // reset transform
+            ctx.globalAlpha = 1;           // reset alpha
+            ctx.clearRect(0,0,w,h);
+            if(rectangle.sprites){
+                var rot = (mouse.y-ch) / ch;
+                var dist = (mouse.x / w)*2 - 0.5;
+                base.angle.value = rot;
+                base.angle.update();
+                base.rotate = base.angle.real;
+                EZSprites.links.update(base);
+                for(var i = 0; i < base.links.length; i++){      
+                    if(!base.links[i].branch){
+                        base.links[i].angle.value = rot;
+                        base.links[i].position.value = dist * 256;
+                        base.links[i].angle.update();
+                        base.links[i].position.update();
+                    
+                        base.links[i].rotate = base.links[i].angle.real;
+                        base.links[i].x = base.links[i].position.real;
+                    }else{
+                        base.links[i].position.value = dist * 128;
+                        base.links[i].position.update();
+                        base.links[i].x = base.links[i].position.real;
+                    
+                    }
+                    EZSprites.links.update(base.links[i]);
+                }
+                EZSprites.links.setTransform(base);
+                EZSprites.sprites.drawLocal(rectangle,0,0,0,1,0,1);
+                for(var i = 0; i < base.links.length; i++){                    
+                    EZSprites.links.setTransform(base.links[i]);
+                    EZSprites.sprites.drawLocal(rectangle,0,0,0,1,0,1);
+                }
+                var str = "FPS " + (1000/frameTime).toFixed(0) 
+                info.textContent = str;
+               
+     
+                frameCount += 1;
+            }     
+            mouse.lastX = mouse.x;
+            mouse.lastY = mouse.y;
+            
+            
+            
+            
+        }
+        function contextChanged(_ctx){
+            EZSprites.context.setCtx(_ctx);
+            ctx = _ctx;
+            canvas = ctx.canvas;
+            w = canvas.width;
+            h = canvas.height;            
+        }
+        EZSprites.context.setCtx(ctx);
+
+        var rectangle = new Image();
+        rectangle.src = "../resources/rectangle.png";
+        rectangle.onload = function(){
+            // Make the image a sprite. One big sprite with the center on the left middle
+            rectangle.sprites = [{x:0,y:0,w:this.width,h:this.height,cx:0,cy:this.height/2}];
+        }        
+    
+        mouseCanvas.addRender(renderAll);
+        addForker();        
+        mouseCanvas.addNotification(contextChanged);
+    
+    </script>
+    </body>
+</html>
+
+
+
+

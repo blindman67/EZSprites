@@ -127,6 +127,7 @@ const links = [
     ["../tank/tankDemo.html","Local coordinates"],
     ["../worldTank/tankDemo.html","World coordinates"],
     ["../particles/particles.html","Particles"],
+    ["../linking/linking.html","Link sprites"],
     ["https://github.com/blindman67/EZSprites","Github"],
 ]
 
@@ -261,4 +262,17 @@ const addForker = (function(){
         mouse = mouseCanvas.mouse;
     }
 
+})();
+
+const mMath = (function(){
+    var xx;
+    const API = {
+        easeInOut : function (x, pow) {
+            x = x < 0 ? 0 : x > 1 ? 1 : x;
+            xx = Math.pow(x,pow);
+            return xx / ( xx + Math.pow(1 - x, pow));
+        }
+    } 
+    return API;
+    
 })();
