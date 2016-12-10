@@ -18,7 +18,7 @@
     
     
     <script>
-        addExtras("Linking Sprites Demo","This example uses the EZSprites.links interface to link many sprites.");
+        addExtras("Linking Sprites Demo","Using EZSprites.links interface & how to locate sprites. Dark red sprites are under the mouse. Light red are close candidets on which addition math is applied. Left click hold to rotate structure.");
         sideMenu();
 
         
@@ -48,101 +48,124 @@
         //=====================================================================================
         // create linked sprites
         
-        var springy = 1;
-        var springAdd = 0.5;
-        var springStart = 1;
-        var springInStart = 0.6;
-        var scale = 0.8;
-        var lastLink;
-        var branch,branch1;
+        function createSimpleTree(){
         
-        // Create the base of the link tree        
-        var base = EZSprites.links.create(100,ch,1,0);
-        // Add array to hold all the associated linked nodes
-        base.links = [];  
-        // add a link
-        lastLink = base.links[base.links.length] = EZSprites.links.add(base,256,0,0.7,0);
-        lastLink.springy = mMath.easeInOut(springInStart,springy);
-        springy += springAdd;
-        // add another link. This link will have some branches so remember it
-        branch1 = lastLink = base.links[base.links.length] = EZSprites.links.add(lastLink,256,0,0.7,0);
-        lastLink.springy = mMath.easeInOut(springInStart,springy);
-        springy += springAdd;
-        
-        branch = lastLink = base.links[base.links.length] = EZSprites.links.add(lastLink,256,0,0.7,0);
-        lastLink.springy = mMath.easeInOut(springInStart,springy);
-        springy += springAdd;
-        for(var i = 0; i < 8; i++){
-            lastLink = base.links[base.links.length] = EZSprites.links.add(lastLink,256,0,scale,0);
-            lastLink.springy = mMath.easeInOut(springInStart,springy);
-            springy += springAdd;
-        }
+            var springy = 1;
+            var springAdd = 0.5;
+            var springStart = 1;
+            var springInStart = 0.8;
+            var rotationAcceleration = 0.04;
+            var scale = 0.8;
+            var lastLink;
+            var branch,branch1;
             
-        springy = springStart
-        lastLink = base.links[base.links.length] = EZSprites.links.add(branch1,128,-64,scale,-0.75);
-        lastLink.branch = true;
-        lastLink.springy = mMath.easeInOut(springInStart,springy);
-        springy += springAdd;
-        for(var i = 0; i < 9; i++){
-            lastLink = base.links[base.links.length] = EZSprites.links.add(lastLink,256,0,scale,0);
-            lastLink.springy = mMath.easeInOut(springInStart,springy);
-            springy += springAdd;
-        }
-
-
-        
-        springy = springStart
-        lastLink = base.links[base.links.length] = EZSprites.links.add(branch1,128,64,scale,0.75);
-        lastLink.branch = true;
-        lastLink.springy = mMath.easeInOut(springInStart,springy);
-        springy += springAdd;
-        for(var i = 0; i < 9; i++){
-            lastLink = base.links[base.links.length] = EZSprites.links.add(lastLink,256,0,scale,0);
-            lastLink.springy = mMath.easeInOut(springInStart,springy);
-            springy += springAdd;
-        }
-        
-        springy = springStart
-        lastLink = base.links[base.links.length] = EZSprites.links.add(branch,128,-64,scale,-0.5);
-        lastLink.branch = true;
-        lastLink.springy = mMath.easeInOut(springInStart,springy);
-        springy += springAdd;
-        for(var i = 0; i < 9; i++){
-            lastLink = base.links[base.links.length] = EZSprites.links.add(lastLink,256,0,scale,0);
-            lastLink.springy = mMath.easeInOut(springInStart,springy);
-            springy += springAdd;
-        }
-        
-        
-        springy = springStart
-        lastLink = base.links[base.links.length] = EZSprites.links.add(branch,128,64,scale,0.5);
-        lastLink.branch = true;
-        lastLink.springy = mMath.easeInOut(springInStart,springy);
-        springy += springAdd;
-        for(var i = 0; i < 9; i++){
-            lastLink = base.links[base.links.length] = EZSprites.links.add(lastLink,256,0,scale,0);
-            lastLink.springy = mMath.easeInOut(springInStart,springy);
-            springy += springAdd;
-        }
-        
-        base.angle = new Chaser(0,0.5,0.5);
-        for(var i = 0; i < base.links.length; i++){  
-            if(base.links[i].springy){
-                base.links[i].angle = new Chaser(0,0.1,base.links[i].springy);
-            }else{
-                base.links[i].angle = new Chaser(0,0.1,0.5);
+            function addBranch(link,x,y,scale,angle,count,springy){
+                var newLink;
+                
+                newLink = lastLink = base.links[base.links.length] = EZSprites.links.add(link,x,y,scale,0,angle);
+                lastLink.springy = mMath.easeInOut(springInStart,springy);
+                springy += springAdd;
+                for(var i = 0; i < count; i++){
+                    lastLink = base.links[base.links.length] = EZSprites.links.add(lastLink,256,0,scale,0,0);
+                    lastLink.springy = mMath.easeInOut(springInStart,springy);
+                    springy += springAdd;
+                }
+                return newLink;
+            
             }
-            base.links[i].position = new Chaser(0,0.5,0.5);
+            
+            // Create the base of the link tree        
+            var base = EZSprites.links.create(100,ch,1,0);
+            // Add array to hold all the associated linked nodes
+            base.links = [];  
+            base.links[base.links.length] = base;
+            // add a link
+            lastLink = base.links[base.links.length] = EZSprites.links.add(base,256,0,0.7,0);
+            lastLink.springy = mMath.easeInOut(springInStart,springy);
+            springy += springAdd;
+            // add another link. This link will have some branches so remember it
+            branch1 = lastLink = base.links[base.links.length] = EZSprites.links.add(lastLink,256,0,0.7,0);
+            lastLink.springy = mMath.easeInOut(springInStart,springy);
+            springy += springAdd;
+            
+                
+            var linkIndex = base.links.length-2;    
+            branch = addBranch(branch1,256,0,scale,0,9);  
+            springy = springStart;
+            for( var j= 0; j < 9; j++){
+                
+                addBranch(base.links[j+linkIndex],128,-64,scale,-(9-j)/4,9-j,springy);    
+                addBranch(base.links[j+linkIndex],128,64,scale,(9-j)/4,9-j,springy);    
+                springy += springAdd;
+            
+            }
+            //addBranch(branch1,128,-64,scale,-0.75,8);    
+            //addBranch(branch1,128,64,scale,0.75,8);    
+            //addBranch(branch,128,-64,scale,-0.5,7);    
+            //addBranch(branch,128,64,scale,0.5,7);    
+
+
+            base.angle = new Chaser(0,0.5,0.5);
+            base.posY = new Chaser(ch,0.3,0.4);
+            for(var i = 0; i < base.links.length; i++){  
+                if(base.links[i].springy){
+                    base.links[i].angle = new Chaser(0,rotationAcceleration,base.links[i].springy);
+                }else{
+                    base.links[i].angle = new Chaser(0,0.1,0.5);
+                }
+                base.links[i].position = new Chaser(0,0.5,0.5);
+            }
+            return base;
+        }
+        // call this function after updating links
+        function findClosestSprite(base,xx,yy){
+            var x,y;
+            var dist; 
+            var minDist = Infinity;
+            var index = -1;
+            for(var i = 0; i < base.links.length; i ++){    
+                base.links[i].mouseOver = base.links[i].mouseNear = false;
+                x = xx- base.links[i].transform.e;
+                y = yy- base.links[i].transform.f;
+                // get scale approx of this link.
+                var lScale = Math.sqrt(base.links[i].transform.a * base.links[i].transform.a  + base.links[i].transform.b * base.links[i].transform.b);
+                dist = Math.sqrt(x * x + y * y);
+                if(dist<256 * lScale){
+                    base.links[i].mouseNear = true;
+                    invMatrix1 = EZSprites.context.matrix.inverse(base.links[i].transform,invMatrix1);
+                    mouseLocal1 = EZSprites.context.matrix.multiplyPoint(invMatrix1,mouse.x,mouse.y,mouseLocal1);
+                    if(mouseLocal1.x >= 0 && mouseLocal1.x < 256 && mouseLocal1.y >= -64 && mouseLocal1.y < 64){                        
+                        base.links[i].mouseOver = true;
+                        if(dist < minDist){
+                            index = i;
+                            minDist = dist;
+                            mouseLocal.x = mouseLocal1.x;
+                            mouseLocal.y = mouseLocal1.y;
+                        }
+                    }else{
+                        index = -1;
+                    }                
+                
+                }
+
+            
+            
+            }
+            return index;
         }
         
-        
-        
+        var base = createSimpleTree();
         var renderCount = 0;
         var fxId = 0;
         var lastTime;
         var frameTime = 0;
         var frameCount = 0;  // total number of sprite rendering frames
-
+        var rot = 0;
+        var distance = 1;
+        var invMatrix = EZSprites.context.matrix.create(1,0,0,1,0,0); // work matrix used to find mouse position for closest sprite
+        var invMatrix1 = EZSprites.context.matrix.create(1,0,0,1,0,0); // work matrix used to find mouse position for closest sprite
+        var mouseLocal = {x:0,y:0};
+        var mouseLocal1 = {x:0,y:0};
 
         // main update function
         function renderAll(time){
@@ -155,36 +178,50 @@
             ctx.globalAlpha = 1;           // reset alpha
             ctx.clearRect(0,0,w,h);
             if(rectangle.sprites){
-                var rot = (mouse.y-ch) / ch;
-                var dist = (mouse.x / w)*2 - 0.5;
-                base.angle.value = rot;
-                base.angle.update();
-                base.rotate = base.angle.real;
-                EZSprites.links.update(base);
+                if(mouse.buttonRaw & 1){
+                    rot = (mouse.y-ch) / ch;
+                    base.posY.value = ch - rot * ch * 0.75
+                    distance = (mouse.x / w)*2 - 0.5;
+                }
+                base.posY.update();
+                base.y = base.posY.real;
+                //EZSprites.links.update(base);
                 for(var i = 0; i < base.links.length; i++){      
                     if(!base.links[i].branch){
                         base.links[i].angle.value = rot;
-                        base.links[i].position.value = dist * 256;
+                        base.links[i].position.value = distance * 256;
                         base.links[i].angle.update();
                         base.links[i].position.update();
                     
                         base.links[i].rotate = base.links[i].angle.real;
-                        base.links[i].x = base.links[i].position.real;
+                      //  base.links[i].x = base.links[i].position.real;
                     }else{
-                        base.links[i].position.value = dist * 128;
+                        base.links[i].position.value = distance * 128;
                         base.links[i].position.update();
-                        base.links[i].x = base.links[i].position.real;
+                        //base.links[i].x = base.links[i].position.real;
                     
                     }
                     EZSprites.links.update(base.links[i]);
                 }
-                EZSprites.links.setTransform(base);
-                EZSprites.sprites.drawLocal(rectangle,0,0,0,1,0,1);
+                var index = findClosestSprite(base,mouse.x,mouse.y);
+
+               // EZSprites.links.setTransform(base);
+               // EZSprites.sprites.drawLocal(rectangle,0,0,0,1,0,1);
                 for(var i = 0; i < base.links.length; i++){                    
                     EZSprites.links.setTransform(base.links[i]);
-                    EZSprites.sprites.drawLocal(rectangle,0,0,0,1,0,1);
+                    if(base.links[i].mouseOver){
+                        EZSprites.sprites.drawLocal(rectangleRed,0,0,0,1,0,1);
+                    }else{                        
+                        EZSprites.sprites.drawLocal(rectangle,0,0,0,1,0,1);
+                        if(base.links[i].mouseNear){
+                            EZSprites.sprites.drawLocal(rectangleRed,0,0,0,1,0,0.25);
+                        
+                        }
+                    }
                 }
                 var str = "FPS " + (1000/frameTime).toFixed(0) 
+                str += " X : " + mouseLocal.x.toFixed(0);
+                str += " Y : " + mouseLocal.y.toFixed(0);
                 info.textContent = str;
                
      
@@ -207,10 +244,12 @@
         EZSprites.context.setCtx(ctx);
 
         var rectangle = new Image();
+        var rectangleRed = new Image();
         rectangle.src = "../resources/rectangle.png";
-        rectangle.onload = function(){
+        rectangleRed.src = "../resources/rectangleRed.png";
+        rectangleRed.onload = rectangle.onload = function(){
             // Make the image a sprite. One big sprite with the center on the left middle
-            rectangle.sprites = [{x:0,y:0,w:this.width,h:this.height,cx:0,cy:this.height/2}];
+            this.sprites = [{x:0,y:0,w:this.width,h:this.height,cx:0,cy:this.height/2}];
         }        
     
         mouseCanvas.addRender(renderAll);

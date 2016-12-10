@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html id="topDoc">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=ISO-8859-8">
+        <title>EZSprites sprite sheets</title>
+        <meta name="keywords" content="sprites, rendering 2D, javascript, game design, Mark Spronck" />
+        <meta name="description" content="EZSprites.js a simple fast sprite rendering utility for the 2D canvas API" />
+        <meta name="author" content="Mark Spronck" />
+        <link rel="stylesheet" type="text/css" href="../demo.css">
+        <script src = "../Math_Chaser.js"></script>
+        <script src = "../../EZSprites.js"></script>
+        <script src = "../fastStack.js"></script>
+        <script src = "../mouseCanvas.js"></script>
+        <script src = "../demoCommon.js"></script>
+        <script src = "../DropManager.js"></script>
+    </head>
+    <body style="background: url(../resources/backgroundchecker.png);background-size: 24px 24px;background-repeat: repeat;image-rendering: pixelated;" id="doc">
+    
+    
+    <script>
+        addExtras("Sprites and Sprite sheets.","Under construction.");
+        sideMenu();
+        function spriteToText(ind,spr){
+            var str = "";
+            var type = spriteType(spr);
+            type = type[0].toUpperCase() + type.substr(1);
+            
+            str += "Ind : " + ind;
+            str += ", Type : '" + type + "'";
+            str += ", X : "+spr.x;
+            str += ", Y : "+spr.y;
+            str += ", W : "+spr.w;
+            str += ", H : "+spr.h;
+            if(type === "Origin"){
+                str += ", CX : "+spr.cx;
+                str += ", CY : "+spr.cy;
+            }
+            
+            return str;
+        }
+        function retypeSprite(spr,type){
+            var sprN = {};
+            if(type === "basic"){
+                sprN.x = spr.x;
+                sprN.y = spr.y;
+                sprN.h = spr.h;
+                sprN.w = spr.w;
+            }else if(type === "origin"){
+                sprN.x = spr.x;
+                sprN.y = spr.y;
+                sprN.h = spr.h;
+                sprN.w = spr.w;
+                sprN.cx = spr.cx === undefined ? spr.w / 2 : spr.cx;
+                sprN.cy = spr.cy === undefined ? spr.h / 2 : spr.cy;            
+            }
+            return sprN;
+        
+        }
+        function spriteType(spr){
+            if(spr.cx === undefined && spr.cy === undefined){
+                if(spr.vx === undefined && spr.vy === undefined && spr.vw === undefined && spr.vh === undefined){
+                    return "basic";
+                }
+
+            }
+            if(spr.cx !== undefined && spr.cy !== undefined){
+                return "origin";
+            }
+            return "unknown";
+
+        }
+
+        var editorPanel = (function(){
+            var panel = {};
+            panel.elements = {};
+            var e = panel.elements;
+            var image; // the image that has the sprites
+            
+            // create the main panel
+            $$(document.body,e.ePan = $("div",{className:"editPanel",id:"pan1"}));
+            
+            $$(e.ePan,$$($("div",{type : "text",id:"imageName"}),e.sheetStatus = $("span",{className : "infoText"})));
+            $$(e.ePan,e.image = $("input",{type : "text",id:"imageName",style : {width : "320px"}}));
+            $$(e.ePan,e.loadImage = $("input",{className : "hoverBut" ,type : "button" , value: "Load",id:"loadImage"}));
+            $$(e.ePan,e.spriteList = $("select",{ multiple: "true", size : 7}));
+            $$(e.ePan,e.animList = $("select",{ multiple: "true", size : 7}));
+            $$(e.ePan,$("br",{}));
+            $$(e.ePan,e.export = $("input",{className : "hoverBut" ,type : "button" , value: "Export"}));
+            $$(e.ePan,e.delete = $("input",{className : "hoverBut" ,type : "button" , value: "Delete"}));
+            $$(e.ePan,e.float = $("input",{className : "hoverBut" ,type : "button" , value: "Float"}));
+            $$(e.ePan,e.unfloat = $("input",{className : "hoverBut" ,type : "button" , value: "Drop"}));
+            $$(e.ePan,e.collapse = $("input",{className : "hoverBut" ,type : "button" , value: "Collapse"}));
+            $$(e.ePan,e.selectAll = $("input",{className : "hoverBut" ,type : "button" , value: "Sel All"}));
+            $$(e.ePan,$("br",{}));
+            $$(e.ePan,[
+                e.typeBasic = $("input",{type : "radio" , name : "spriteType"}), 
+                e.typeBasicText = $("span",{textContent : "Basic", style : { cursor : "pointer" }}),
+            ]);
+            $$(e.ePan,[
+                e.typeOrigin = $("input",{type : "radio" , name : "spriteType"}), 
+                e.typeOriginText = $("span",{textContent : "Origin", style : { cursor : "pointer" }}),
+            ]);
+            $$(e.ePan,$("br",{}));
+            $$(e.ePan,e.animate = $("input",{className : "hoverBut" ,type : "button" , value: "animate",id:"Animate"}));
+            $$(e.ePan,e.fpsPlus = $("input",{className : "hoverBut" ,type : "button" , value: "FPS+"}));
+            $$(e.ePan,e.fpsMinus = $("input",{className : "hoverBut" ,type : "button" , value: "FPS-"}));
+            $$(e.ePan,e.addA = $("input",{className : "hoverBut" ,type : "button" , value: "add"}));
+            $$(e.ePan,e.removeA = $("input",{className : "hoverBut" ,type : "button" , value: "remove"}));
+            $$(e.ePan,e.play = $("input",{className : "hoverBut" ,type : "button" , value: "play/stop"}));
+            $$(e.ePan,e.selectAllAnim = $("input",{className : "hoverBut" ,type : "button" , value: "Sel All F"}));
+            
+            var animChanged = true;
+
+            function getUISpriteType(){
+                var type = "unknown";
+                if(e.typeBasic.checked){
+                    type = "basic";
+                } else if (e.typeOrigin.checked){
+                    type = "origin";
+                }
+                return type;            
+            }
+            var API = {
+                clearAll : function(){
+                
+                },
+                update : function(_image,selectedInd){
+                    var opt;
+                    var area = 0
+                    image = _image;
+                    e.image.value = image.src;
+                    if(image.sprites.length !== e.spriteList.length){
+                        while(e.spriteList.length > 0){
+                            e.spriteList.remove(0);
+                        }
+                        for(var i = 0; i < image.sprites.length; i++){
+                            $$(e.spriteList,$("option",{value:"#"+i,textContent :spriteToText(i,image.sprites[i])}));
+                        }
+                    }
+                    for(var i = 0; i < image.sprites.length; i++){
+                        e.spriteList[i].textContent = spriteToText(i,image.sprites[i]);
+                        e.spriteList[i].selected = false;
+                    
+                        area += image.sprites[i].w * image.sprites[i].h;
+                    } 
+                    for(var i = 0; i < API.spriteSelectionList.length; i++){
+                        e.spriteList[this.spriteSelectionList[i]].selected = true;
+                    }
+                    if(animChanged){
+                        animChanged = false;
+                        while(e.animList.length > 0){
+                            e.animList.remove(0);
+                        }
+                        for(var i = 0; i < API.spriteAnimationList.length; i ++){
+                            var frame = API.spriteAnimationList[i];
+                            $$(
+                                e.animList,$(
+                                    "option", {
+                                        value:"#"+i,
+                                        textContent :"F : "+i+" S : "+frame.index+" T : "+frame.time
+                                    }
+                                )
+                            );
+                        
+                        
+                        }
+                    
+                    
+                    }
+                    for(var i = 0; i < e.animList.length; i++){
+                        e.animList[i].selected = false;
+                        var frame = API.spriteAnimationList[i];
+                         e.animList[i].textContent = "F : "+i+" S : "+frame.index+" T : "+frame.time;
+                    }                     
+                    for(var i = 0; i < API.animationSelectionList.length; i++){
+                        e.animList[API.animationSelectionList[i]].selected = true;
+                    }
+                    var str  = "Name : "+image.src.split("/").pop().split(".")[0];
+                    str += " W/H : " + image.width + "/" + image.height;
+                    str += " Sprites : " + image.sprites.length + ", Use : " + ((area / (image.width * image.height)) * 100).toFixed(0) + "%"
+                    if(selectedInd !== undefined && image.sprites[selectedInd] !== undefined){
+                        str += " "+spriteToText(selectedInd,image.sprites[selectedInd]);
+                    }
+                    if(this.spriteSelectionList.length === 1){
+                        var type = spriteType(image.sprites[this.spriteSelectionList[0]]);
+                        if(type === "basic"){
+                            e.typeBasic.checked = true;
+                        } else if(type === "origin"){
+                            e.typeOrigin.checked = true;
+                        } else {
+                            e.typeBasic.checked = false;
+                            e.typeOrigin.checked = false;
+                            e.typeVirtual.checked = false;
+                        }
+                    }else{
+                        for(var i = 0; i < this.spriteSelectionList.length; i++){
+                        }
+                        
+                    
+                    }
+                    e.sheetStatus.textContent = str;
+                },
+                addSpriteSheet : function(_image){ // adds new image.
+                    image = _image;
+                    for(var i = 0; i < image.sprites.length; i++){
+                        $$(e.spriteList,$("option",{value:"#"+i,textContent :spriteToText(i,image.sprites[i])}));
+                    }      
+                    this.update(image);
+                },
+                addSprite : function(spr){
+                },   
+                addCallback : function(elementName,callback){ // adds callbacks 
+                    if(e[elementName] !== undefined){
+                        $E(e[elementName],"click",callback);
+                    }
+                },
+                exportSpriteList : function(){
+                    var filename = image.src.split("/").pop().split(".")[0] + ".json";
+                    var contain = {};
+                    contain.info = {};
+                    contain.info.title = "EZSprites sprite list export.";
+                    contain.info.github = "https://github.com/blindman67/EZSprites";
+                    contain.info.date = new Date();
+                    contain.info.forImage = image.src;                                        
+                    contain.sprites = image.sprites;
+                    downloadText(JSON.stringify(contain),filename);
+                },
+                spriteSelectChanged : function(){
+                    API.spriteSelectionList.length = 0;
+                    for(var i = 0; i < e.spriteList.length; i ++){
+                        if(e.spriteList[i].selected){
+                            API.spriteSelectionList.push(i);
+                        }
+                    }
+                    API.update(image);
+                },
+                typeChange : function(){
+                    if(this.textContent === "Basic"){
+                        e.typeBasic.checked =  !e.typeBasic.checked;
+                    }/*else if(this.textContent === "Virtual"){
+                        e.typeVirtual.checked =  !e.typeVirtual.checked;
+                    }*/else if(this.textContent === "Origin"){
+                        e.typeOrigin.checked =  !e.typeOrigin.checked;
+                    }
+                    var type = getUISpriteType();
+                    if(type !== "unknown"){
+                        for(var i = 0; i < API.spriteSelectionList.length; i ++){
+                            image.sprites[API.spriteSelectionList[i]] = retypeSprite(image.sprites[API.spriteSelectionList[i]],type);
+                        }
+                    }
+                    API.update(image);
+                },
+                selectAll:function(){
+                    if(API.spriteSelectionList.length === image.sprites.length){
+                        API.spriteSelectionList.length = 0;
+                        API.update(image);
+                        return;                    
+                    }
+                    API.spriteSelectionList.length = 0;
+                    for(var i = 0; i < image.sprites.length; i++){
+                        API.spriteSelectionList.push(i);
+                    }
+                    API.update(image);
+                
+                },
+                animate:function(){
+                    animChanged = true;
+                    for(var i = 0; i < API.spriteSelectionList.length; i ++){
+                        API.spriteAnimationList.push({
+                            index : API.spriteSelectionList[i],
+                            time : 2,
+                        });
+                    }
+                    API.update(image);
+                
+                },
+                animSelectChange : function(){
+                    API.animationSelectionList.length = 0;
+                    for(var i = 0; i < e.animList.length; i ++){
+                        if(e.animList[i].selected){
+                            API.animationSelectionList.push(i);
+                        }
+                    }
+                    API.update(image);                
+                
+                },
+                addFrame:function(){
+                    animChanged = true;
+                    if(API.animationSelectionList.length === 0){
+                        API.spriteAnimationList.push({
+                            index : API.spriteSelectionList[0],
+                            time : 2,
+                        });
+                    
+                    }else{
+                        for(var i = API.animationSelectionList.length-1; i >= 0; i--){
+                            API.spriteAnimationList.splice(
+                                API.animationSelectionList[i],0,{
+                                index : API.spriteSelectionList[0],
+                                time : 2,
+                            });
+                        }
+                    }
+                    API.update(image);
+                
+                },
+                removeFrames:function(){
+                    animChanged = true;
+                    var i = 0;
+                    while(i < e.animList.length){
+                        if(e.animList[i].selected){
+                            e.animList.remove(i);
+                            API.spriteAnimationList.splice(i,1);                            
+                            i--;
+                        }
+                        i++;
+                    }
+                    API.animationSelectionList.length = 0;
+                    API.update(image);
+                
+                
+                },
+                changeFrameTime : function(change){
+                    for(var i = 0 ;i < API.animationSelectionList.length; i ++){
+                        var frame = API.spriteAnimationList[API.animationSelectionList[i]];
+                        frame.time = frame.time + change < 1 ? 1 : frame.time + change;
+                    }
+                    API.update(image);
+                },
+                animFramesSelectAll : function(){
+                    if(API.animationSelectionList.length === API.spriteAnimationList.length){
+                        API.animationSelectionList.length = 0;
+                    }else{
+                        API.animationSelectionList.length = 0;
+                        for(var i = 0 ;i < API.spriteAnimationList.length; i ++){
+                            API.animationSelectionList.push(i);
+                        }
+                    }
+                    animChanged = true;
+                    API.update(image);
+                                        
+                
+                
+                },
+                
+                spriteSelectionList : null,
+                spriteAnimationList : null,
+                animationSelectionList : [],
+            }
+            // add events
+            $E(e.export,"click",API.exportSpriteList);
+            $E(e.spriteList,"change",API.spriteSelectChanged);
+            $E(e.animList,"change",API.animSelectChange);
+            $E(e.animate,"click",API.animate);
+            $E(e.addA,"click",API.addFrame);
+            $E(e.removeA,"click",API.removeFrames);
+            $E(e.selectAll,"click",API.selectAll);
+            $E(e.fpsPlus,"click",function(){API.changeFrameTime(1);});
+            $E(e.fpsMinus,"click",function(){API.changeFrameTime(-1);});
+            $E(e.selectAllAnim,"click",API.animFramesSelectAll);
+            $E(
+                [e.typeBasic,e.typeBasicText,e.typeOrigin,e.typeOriginText],
+                "click",
+                API.typeChange
+            );
+            return API;
+        })();
+        var hostFileDirectory =  "http://localhost/Markshome/GameEngine/July2015/"
+        function fileDropped(fileInfo){
+            console.log(fileInfo);
+            if(fileInfo.mimeType === "image/png"){
+                var sSheet = new Image();
+                sSheet.src = hostFileDirectory + fileInfo.name;
+                sSheet.onload = function(){
+                    this.ready = true;
+                    var spriteOptions = {
+                        center: true,
+                    }
+                    if(EZSprites.sprites.locateSprites(this,spriteOptions) === undefined){
+                        demoInstructions.textContent = "Sorry can not extract sprites as image is protected.";
+                    
+                    }else{
+                        selectedSprites.length = 0;
+                        spriteSheet = this;
+                        editorPanel.addSpriteSheet(this);
+                    }
+                    
+                }         
+            }
+
+        }
+        var dropManager = new DropManager(
+            document.body,
+            fileDropped,
+            ["text/json","image/png"]
+        )
+            
+        const ZOOM_WHEEL_STEPS = 10;  // smaller numbers zooms more for each wheel step (MUST BE > 0 and evenly divisible into 120)
+        const ZOOM_AMOUNT = 1.5; // bigger numbers faster zoom
+    
+        mouseCanvas.start();
+        var ctx = mouseCanvas.ctx;
+        var canvas = mouseCanvas.canvas;
+        var mouse = mouseCanvas.mouse;
+        var w = canvas.width;
+        var h = canvas.height;
+        var cw = w / 2;  // center 
+        var ch = h / 2;
+        var world = {
+            posX : new Chaser(0,0.85,0.05),
+            posY : new Chaser(0,0.85,0.05),
+            scale : new Chaser(1,0.85,0.05),
+        }
+        var mouseWorld = {x : 0,y :0};  // world position of mouse
+        var currentWorld = {}; // to hold the decomposed world matrix
+
+        //=====================================================================================
+
+     
+        var renderCount = 0;
+        var lastTime;
+        var frameTime = 0;
+        var frameCount = 0;  // total number of sprite rendering frames
+
+        function drawBox(col,x,y,w,h){
+            ctx.fillStyle = col;
+            ctx.fillRect(x,y,1,h);
+            ctx.fillRect(x+w-1,y,1,h);
+            ctx.fillRect(x+1,y,w-2,1);
+            ctx.fillRect(x+1,y+h-1,w-2,1);
+            ctx.fillRect(x+w / 2 - 0.5,y+1,1,1);
+            ctx.fillRect(x+w / 2 - 0.5,y+h-2,1,1);
+            ctx.fillRect(x+1,y + h / 2 - 0.5,1,1);
+            ctx.fillRect(x+w-2,y + h / 2 - 0.5,1,1);
+        }
+        function drawBoxParts(parts,col,spr,x,y){
+            ctx.fillStyle = col;
+            var xx = spr.x + x - 1;
+            var yy = spr.y + y - 1;
+            var ww = spr.w + 2;
+            var hh = spr.h + 2;
+            if(parts === "m"){
+                drawBox(col,xx,yy,ww,hh);
+                return;
+            }
+            if(parts[1] === "w"){
+                ctx.fillRect(xx,yy,1,hh);
+            }else if(parts[1] === "e"){
+                ctx.fillRect(xx + ww-1,yy,1,hh);
+            }
+            if(parts[1] === "n" || parts[2] === "n"){
+                ctx.fillRect(xx,yy,ww,1);
+            }else if(parts[1] === "s" || parts[2] === "s"){
+                ctx.fillRect(xx,yy+hh-1,ww,1);
+            }
+            if(parts === "c"){
+                ctx.fillRect(xx + 1 + spr.cx-0.5,yy + 1 + spr.cy-4,1,4 * 2);
+                ctx.fillRect(xx + 1 + spr.cx-4,  yy + 1 + spr.cy-0.5,4 * 2,1);            
+            }
+        }        
+        function drawMark(col,x,y,size){
+            ctx.fillStyle = col;
+            ctx.fillRect(x-0.5,y-size,1,size * 2);
+            ctx.fillRect(x-size,y-0.5,size * 2,1);
+        }
+        var canvasSet = false;
+        function setupCanvasState(){
+            EZSprites.FX.filter(false); // turn of bilinear filtering
+            canvasSet = true;
+        }
+        function getSelectedSpriteBounds(sprites,bounds){
+            if(bounds === undefined){
+                bounds = {};
+            }
+            bounds.minx = Infinity;
+            bounds.maxx = -Infinity;
+            bounds.miny = Infinity;
+            bounds.maxy = -Infinity;
+            for(var i = 0; i <selectedSprites.length; i++){
+                var spr = sprites[selectedSprites[i]];
+                bounds.minx = Math.min(spr.x,bounds.minx);
+                bounds.miny = Math.min(spr.y,bounds.miny);
+                bounds.maxx = Math.max(spr.x + spr.w,bounds.maxx);
+                bounds.maxy = Math.max(spr.y + spr.h,bounds.maxy);
+            }
+            return bounds;
+        
+        
+        }
+        var spriteList = [];
+        var animationList = [];
+        var playAnim = false;
+        var animFrame = 0;
+        var animFrameCount = 0;
+        var imgX,imgY
+        var currentSprite;
+        var currentSpriteIndex;
+        var selectedSprites = [];
+        var selectedBounds;
+        var floatBounds = {};
+        var draggingSprite;
+        var dragging = false;
+        var dragStartX;
+        var dragStartY;
+        var dragStartXH;
+        var dragStartYH;
+        var draggingType;
+        var cursor;
+        var cursors = {
+            m : "move",
+            mw : "w-resize",
+            me : "e-resize",
+            mn : "n-resize",
+            ms : "s-resize",
+            mwn : "nw-resize",
+            men : "ne-resize",
+            mws : "sw-resize",
+            mes : "se-resize",
+            c : "move",
+        }
+        function deleteSprites(){
+            for(var i = 0; i <selectedSprites.length; i++){
+                spriteSheet.sprites[selectedSprites[i]] = null;
+            }
+            selectedSprites.length = 0;
+            for(var i = 0; i <spriteSheet.sprites.length; i++){
+                if(spriteSheet.sprites[i] === null){
+                    spriteSheet.sprites.splice(i,1);
+                    i--;
+                }
+            }
+            clearFloatSprites();
+        }
+        function collapseSprites(){
+            if(selectedSprites.length > 1){
+                var first = selectedSprites[0];
+                var b = getSelectedSpriteBounds(spriteSheet.sprites);
+                deleteSprites();
+                spriteSheet.sprites.splice(first,0,{
+                    x : b.minx,
+                    y : b.miny,
+                    w : b.maxx -b.minx,
+                    h : b.maxy -b.miny,
+                });
+                selectedSprites[0] = first;
+                editorPanel.update(spriteSheet,selectedSprites[0]);                
+            }
+            clearFloatSprites();
+            
+        
+        
+        }
+        function floatSprites(){
+            for(var i = 0; i <selectedSprites.length; i++){
+                var spr = spriteSheet.sprites[selectedSprites[i]];
+                spriteList.push({
+                    x : Math.floor(imgX + spriteSheet.width +  spriteSheet.width / 2) ,
+                    y : Math.floor(imgY + spriteSheet.height / 2),
+                    index : selectedSprites[i],
+                })
+            }
+            updateFloatSprites();
+        }
+        function dropFloatSprites(){
+            for(var i = 0; i <selectedSprites.length; i++){
+                for(var j = 0; j < spriteList.length; j ++){
+                    if(spriteList[j].index === selectedSprites[i]){
+                        spriteList.splice(j,1);
+                        j--;
+                    }
+                }
+                
+            }
+            updateFloatSprites();
+        
+        }
+        function clearFloatSprites(){
+            spriteList.length = 0;
+            updateFloatSprites();
+        }
+        function updateFloatSprites(){
+            var maxW = 0;
+            for(var i = 0; i < spriteList.length; i++){
+                var s = spriteList[i];
+                var spr = spriteSheet.sprites[s.index];
+                maxW = Math.max(maxW,spr.w);
+            }
+            var x = imgX + spriteSheet.width + 2 + maxW;
+            var y = imgY + spriteSheet.height / 2;
+            for(var i = 0; i < spriteList.length; i++){
+                var s = spriteList[i];
+                s.x = Math.floor(x);
+            }
+            floatBounds.minx = Infinity;
+            floatBounds.maxx = -Infinity;
+            floatBounds.miny = Infinity;
+            floatBounds.maxy = -Infinity;
+            for(var i = 0; i <spriteList.length; i++){
+                var s = spriteList[i];
+                var spr = spriteSheet.sprites[s.index];
+                var xx = s.x;
+                var yy = s.y;
+                if(spr.cx !== undefined){
+                    xx -= spr.cx;
+                    yy -= spr.cy;
+                }else{
+                    xx -= spr.w/2;
+                    yy -= spr.h/2;
+                }
+                floatBounds.minx = Math.min(xx,floatBounds.minx);
+                floatBounds.miny = Math.min(yy,floatBounds.miny);
+                floatBounds.maxx = Math.max(xx + spr.w,floatBounds.maxx);
+                floatBounds.maxy = Math.max(yy + spr.h,floatBounds.maxy);
+            }            
+        }
+
+        function playAnimation(){
+            if(playAnim){
+                playAnim = false;
+            }else{
+                if(animationList.length > 1){
+                    playAnim = true;
+                    animFrame = 0;
+                    animFrameCount = animationList[0].time - 1;
+                }
+            }
+        
+        }
+        editorPanel.addCallback("delete",deleteSprites);
+        editorPanel.addCallback("float",floatSprites);
+        editorPanel.addCallback("unfloat",dropFloatSprites);
+        editorPanel.addCallback("collapse",collapseSprites);
+        editorPanel.addCallback("play",playAnimation);
+        editorPanel.spriteSelectionList = selectedSprites;
+        editorPanel.spriteAnimationList = animationList;
+        function updateAll(showCurrent){
+            if(typeof showCurrent === "number"){
+                editorPanel.update(spriteSheet,showCurrent);            
+            }else{
+                if(selectedSprites.length > 0 && ! (showCurrent === false)){
+                    editorPanel.update(spriteSheet,selectedSprites[0]);
+                }else{
+                    editorPanel.update(spriteSheet);
+                }
+            }
+            if(spriteList.length > 0){
+                updateFloatSprites();
+            }
+        }
+
+        // main update function
+        function renderAll(time){
+            var tx,ty,i;
+            cursor = "";
+            if(lastTime !== undefined){
+                frameTime = time-lastTime;
+            }
+            lastTime = time;    
+           // return
+            ctx.setTransform(1,0,0,1,0,0); // reset transform
+            ctx.globalAlpha = 1;           // reset alpha
+            ctx.clearRect(0,0,w,h);
+            
+            
+            if(spriteSheet.ready){
+                if(!canvasSet){
+                    setupCanvasState();
+                }
+                world.posX.update();
+                world.posY.update();
+                world.scale.update();
+                EZSprites.world.setWorld(world.posX.real,world.posY.real,world.scale.real);
+
+                mouseWorld = EZSprites.world.screen2World(mouse.x,mouse.y,mouseWorld);            
+                if(mouse.buttonRaw & 2){
+                    world.posX.value += mouse.x - mouse.lastX;
+                    world.posY.value += mouse.y - mouse.lastY;
+                 
+                }
+                if(mouse.w !== 0){
+                    if(mouse.w < 0){
+                        EZSprites.world.zoom2Screen(mouse.x,mouse.y,ZOOM_AMOUNT,true);
+                        mouse.w = 0;//ZOOM_WHEEL_STEPS;
+                    }else{
+                        EZSprites.world.zoom2Screen(mouse.x,mouse.y,ZOOM_AMOUNT,false);
+                        mouse.w = 0;//ZOOM_WHEEL_STEPS
+                    }
+                    //world.scale.real = 
+                    
+                    mouseWorld = EZSprites.world.screen2World(mouse.x,mouse.y,mouseWorld);
+                    EZSprites.world.getWorld(currentWorld);
+                    //world.posX.real = world.posX.value = currentWorld.x;
+                    world.posX.value = currentWorld.x;
+                    //world.posY.real = world.posY.value =  currentWorld.y;
+                    world.posY.value =  currentWorld.y;
+                    //world.scale.real = world.scale.value = currentWorld.sx;
+                    world.scale.value = currentWorld.sx;
+                    world.posX.update();
+                    world.posY.update();
+                    world.scale.update();
+                    EZSprites.world.setWorld(world.posX.real,world.posY.real,world.scale.real);
+                }
+                mouseWorld = EZSprites.world.screen2World(mouse.x,mouse.y,mouseWorld);
+                EZSprites.context.setWorldLocal(0,0,1,0);
+                
+                var x = Math.floor((w - spriteSheet.width) / 2);
+                var y = Math.floor((h - spriteSheet.height) / 2);
+                imgX = x;
+                imgY = y;
+                ctx.drawImage(spriteSheet,x,y);
+                var mrx = mouseWorld.x;
+                var mry = mouseWorld.y;
+                drawBox("black",x-1,y-1,spriteSheet.width + 2,spriteSheet.height + 2);
+                mouseWorld.x -= x;
+                mouseWorld.y -= y;
+                var mrHx = Math.floor(mouseWorld.x * 2)/2;  // half pixel snap
+                var mrHy = Math.floor(mouseWorld.y * 2)/2;
+                mouseWorld.x = Math.floor(mouseWorld.x);
+                mouseWorld.y = Math.floor(mouseWorld.y);
+                currentSprite = undefined;
+                if(selectedSprites.length > 1){
+                    selectedBounds = getSelectedSpriteBounds(spriteSheet.sprites,selectedBounds);
+                    drawBox(
+                        "cyan",
+                        selectedBounds.minx-1+x,
+                        selectedBounds.miny-1+y,
+                        selectedBounds.maxx-selectedBounds.minx + 2,
+                        selectedBounds.maxy-selectedBounds.miny + 2
+                    );
+                }
+                for(var i = 0; i < spriteSheet.sprites.length; i++){
+                    var spr = spriteSheet.sprites[i];
+                    var col = "blue";
+                    if(selectedSprites.length !== 1 || (selectedSprites.length === 1 && i !== selectedSprites[0])){
+                        if(mouseWorld.x >= spr.x-4 && mouseWorld.x < spr.x + spr.w+4 && mouseWorld.y >= spr.y-4 && mouseWorld.y < spr.y + spr.h+4){
+                            currentSprite = spr;
+                            currentSpriteIndex = i;
+                        }
+                        if(selectedSprites.indexOf(i) > -1){
+                            col = "yellow";
+                        }
+                        drawBox(col,spr.x-1+x,spr.y-1+y,spr.w + 2,spr.h + 2);
+                        if(spr.cx !== undefined){
+                            drawMark("#0F0",spr.x + spr.cx + x,spr.y + spr.cy + y,4);
+                        }
+                    }
+                
+                }
+                if(selectedSprites.length === 1){
+                    var spr = spriteSheet.sprites[selectedSprites[0]];
+                    if(mouseWorld.x >= spr.x-4 && mouseWorld.x < spr.x + spr.w+4 && mouseWorld.y >= spr.y-4 && mouseWorld.y < spr.y + spr.h+4){
+                        currentSprite = spr;
+                        currentSpriteIndex = selectedSprites[0];
+                    }
+                    drawBox("yellow",spr.x-1+x,spr.y-1+y,spr.w + 2,spr.h + 2);
+                    if(spr.cx !== undefined){
+                        drawMark("#0F0",spr.x + spr.cx + x,spr.y + spr.cy + y,4);
+                    }                
+                }
+                if(playAnim){
+                    animFrameCount -= 1;
+                    if(animFrameCount < 0){                    
+                        animFrame += 1;
+                        animFrame %= animationList.length;
+                        animFrameCount = animationList[animFrame].time-1;
+                    }
+                    EZSprites.sprites.drawWorld(spriteSheet,animationList[animFrame].index,Math.floor(imgX + (spriteSheet.width * 1.5)),Math.floor(imgY + spriteSheet.height/2),1,0,1);
+                    
+                
+                }
+                if(spriteList.length > 0){
+                    var f = floatBounds;
+                    var topIndex;
+                    var ws = world.scale.real;
+                    drawBox("red",f.minx-1,f.miny-1,(f.maxx-f.minx)+ 2,(f.maxy-f.miny)+2);
+                    for(var i = 0; i < spriteList.length; i++){
+                        var s = spriteList[i];
+                        if(currentSpriteIndex !== s.index){
+                            EZSprites.sprites.draw(spriteSheet,s.index,(s.x - f.minx)*ws,ch,ws,0,1);
+                            //EZSprites.sprites.drawWorld(spriteSheet,s.index,s.x,s.y,1,0,1);
+                        }else{
+                            topIndex = i;
+                        }
+                    }
+                    if(topIndex !== undefined){
+                        var s = spriteList[topIndex];
+                        EZSprites.sprites.draw(spriteSheet,s.index,(s.x - f.minx)*ws,ch,ws,0,1);
+//                        EZSprites.sprites.drawWorld(spriteSheet,s.index,s.x,s.y,1,0,1);
+                    }
+                }
+                EZSprites.context.setWorldLocal(0,0,1,0);
+                if(dragging){
+                    if(mouse.buttonRaw & 1){
+                        difx = mouseWorld.x-dragStartX;
+                        dify = mouseWorld.y-dragStartY;
+                        var hdifx = mrHx - dragStartXH;
+                        var hdify = mrHy - dragStartYH;
+
+                        if(selectedSprites.length > 1){
+                            for(var i = 0; i < selectedSprites.length;i++){
+                                var spr = spriteSheet.sprites[selectedSprites[i]];
+                                spr.x += difx;
+                                spr.y += dify;
+                                spr.x = Math.round(spr.x);
+                                spr.y = Math.round(spr.y);
+                            }
+                        
+                        
+                        
+                        }else{
+
+                            if(draggingType === "c"){
+                                draggingSprite.cx += hdifx;
+                                draggingSprite.cy += hdify;
+                            
+                            }else if(draggingType === "m"){
+                                draggingSprite.x += difx;
+                                draggingSprite.y += dify;
+                                draggingSprite.x = Math.round(draggingSprite.x);
+                                draggingSprite.y = Math.round(draggingSprite.y);
+                            }else if(draggingType === "mw"){
+                                var ww = draggingSprite.x + draggingSprite.w;
+                                draggingSprite.x += difx;
+                                draggingSprite.x = Math.round(draggingSprite.x);
+                                draggingSprite.w = ww - draggingSprite.x;
+                            }else if(draggingType === "mn"){
+                                var hh = draggingSprite.y + draggingSprite.h;
+                                draggingSprite.y += dify;
+                                draggingSprite.y = Math.round(draggingSprite.y);
+                                draggingSprite.h = hh - draggingSprite.y;
+                            }else if(draggingType === "me"){
+                                draggingSprite.w += difx;
+                                draggingSprite.w = Math.round(draggingSprite.w);
+                            }else if(draggingType === "ms"){
+                                draggingSprite.h += dify;
+                                draggingSprite.h = Math.round(draggingSprite.h);
+                            }else if(draggingType === "mes"){
+                                draggingSprite.w += difx;
+                                draggingSprite.h += dify;
+                                draggingSprite.w = Math.round(draggingSprite.w);
+                                draggingSprite.h = Math.round(draggingSprite.h);
+                                    
+                            }
+                        }
+                    
+                        dragStartX = mouseWorld.x;
+                        dragStartY = mouseWorld.y;
+                        dragStartXH = mrHx;
+                        dragStartYH = mrHy;
+                        updateAll();
+                        
+                    }else{
+                        dragging = false;
+                        if(draggingSprite.w < 0){
+                            draggingSprite.w = -draggingSprite.w;
+                            draggingSprite.x -= draggingSprite.w;
+                        }
+                        if(draggingSprite.h < 0){
+                            draggingSprite.h = -draggingSprite.h;
+                            draggingSprite.y -= draggingSprite.h;
+                        }
+                    }
+                
+                
+                }else{
+                    if(currentSprite){
+                        spr = currentSprite;
+                        var isSelected = false;
+                        var canEdit = false;
+                        if(selectedSprites.indexOf(currentSpriteIndex) > -1){
+                            isSelected = true;
+                            canEdit = true;
+                        }else{
+                            if(selectedSprites.length === 1){
+                                spr = selectedSprites[0];
+                                canEdit = true;
+                            }
+                        }
+                        if(canEdit){
+                            var cName = "m";
+                            if(selectedSprites.length === 1){
+                                if(mouseWorld.x < spr.x ){
+                                    cName += "w";
+                                }else if(mouseWorld.x > spr.x + spr.w ){
+                                    cName += "e";
+                                }
+                                if(mouseWorld.y < spr.y ){
+                                    cName += "n";
+                                }else if(mouseWorld.y > spr.y + spr.h ){
+                                    cName += "s";
+                                }
+                                if(spr.cx !== undefined){
+                                    if(mouseWorld.x > spr.x + spr.cx -3 && mouseWorld.x < spr.x + spr.cx + 3 &&
+                                        mouseWorld.y > spr.y + spr.cy -3 && mouseWorld.y < spr.y + spr.cy + 3){
+                                        cName = "c";
+                                    }
+                                }
+                            }
+                        }
+                        if(mouse.buttonRaw & 4){
+                            var i;
+                            if(!isSelected){
+                                selectedSprites.push(currentSpriteIndex);
+                                updateAll(currentSpriteIndex);
+                            }else{
+                                selectedSprites.splice(selectedSprites.indexOf(currentSpriteIndex),1);
+                                if(selectedSprites.length > 0){
+                                    updateAll();
+                                }else{
+                                    updateAll();
+                                }
+                            }
+                            mouse.buttonRaw = mouse.buttonRaw & 0b011;
+                        }
+                            
+                        if(mouse.buttonRaw & 1){
+                            if(!isSelected){
+                                selectedSprites.length = 0;
+                                selectedSprites[0] = currentSpriteIndex;
+                                mouse.buttonRaw = mouse.buttonRaw & 0b110;
+                                updateAll();
+                            }else{
+                                dragging = true;
+                                draggingSprite = currentSprite;
+                                draggingType = cName;
+                                dragStartX = mouseWorld.x;
+                                dragStartY = mouseWorld.y;
+                                dragStartXH = mrHx;
+                                dragStartYH = mrHy;                                 
+                            }
+                        }
+                        if(isSelected){
+                            cursor = cursors[cName];
+                            drawBoxParts(cName,"red",spr,x,y);
+                        }else{
+                            cursor = "pointer";
+                            drawBox("#0F0",spr.x-1+x,spr.y-1+y,spr.w + 2,spr.h + 2);
+                        }
+                        //if(mouseWorld.x >= spr.x && mouseWorld.x < spr.x + spr.w && mouseWorld.y >= spr.y && mouseWorld.y < spr.y + spr.h){
+                    }else
+                    if(mouse.buttonRaw & 1){
+                        if(selectedSprites.length === 0){
+                            spriteSheet.sprites.push({
+                                x : mouseWorld.x,
+                                y : mouseWorld.y,
+                                w : 0,
+                                h : 0,
+                            });
+                            cName = "mes";
+                            dragging = true;
+                            selectedSprites[0] = spriteSheet.sprites.length-1;
+                            draggingSprite = currentSprite = spriteSheet.sprites[spriteSheet.sprites.length-1];
+                            draggingType = cName;
+                            dragStartX = mouseWorld.x;
+                            dragStartY = mouseWorld.y;   
+                            dragStartXH = mrHx;
+                            dragStartYH = mrHy;   
+                            updateAll();
+                        }else{
+                            selectedSprites.length = 0;
+                            mouse.buttonRaw = mouse.buttonRaw & 0b110;
+                            updateAll(false);
+                        }
+                    }
+                                                                
+                }
+                if(mouse.over){
+                    drawMark("rgba(255,0,0,0.5)",Math.floor(mrx),Math.floor(mry),1000,1000);
+                }
+
+                
+            }
+            var str = "FPS " + (1000/frameTime).toFixed(0);
+            str += " X : " + mouseWorld.x.toFixed(0);
+            str += " Y : " + mouseWorld.y.toFixed(0);
+            str += cursor
+            info.textContent = str;
+           
+ 
+            frameCount += 1;
+  
+            mouse.lastX = mouse.x;
+            mouse.lastY = mouse.y;
+            if(cursor !== ""){
+                mouseCanvas.cursor = cursor;
+            }
+            
+            
+        }
+        function contextChanged(_ctx){
+            EZSprites.context.setCtx(_ctx);
+            ctx = _ctx;
+            canvas = ctx.canvas;
+            w = canvas.width;
+            h = canvas.height;     
+            canvasSet =false;   
+        }
+        EZSprites.context.setCtx(ctx);
+
+        var spriteSheet = new Image();
+        spriteSheet.src = "../resources/spritesheet.png";
+        spriteSheet.onload = function(){
+            spriteSheet.ready = true;
+            var spriteOptions = {
+                center: true,
+            }
+            if(EZSprites.sprites.locateSprites(spriteSheet,spriteOptions) === undefined){
+                demoInstructions.textContent = "Sorry can not extract sprites as image is protected.";
+            
+            }else{
+                editorPanel.addSpriteSheet(this);
+            }
+            
+        }         
+    
+        mouseCanvas.addRender(renderAll);
+        addForker();        
+        mouseCanvas.addNotification(contextChanged);
+    
+    </script>
+    </body>
+</html>
+
+
+
+

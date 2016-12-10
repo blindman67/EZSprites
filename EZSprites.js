@@ -47,31 +47,8 @@ Set up the context
     
 Helper function 
 
-   EZSprites.sprites.locateSprites (image)
-        Scans the supplied image (spritesheet) and locates all the sprites. A sprite is any continuous set of pixels 
-        that have a non zero alpha value. Sprites should not overlap. 
-        
-        Moat.
-        For the best results you should have a one pixel transparent boarder (moat) around the sprite. This will prevent
-        colour bleeding from neighbouring sprites. Sprites can be butted against the image sides (no boarder required) 
-        only inside edges of sprite need a moat. 
-        
-        If a sprite has a width or height that is not event some draw functions will give a slightly blurred effect. It 
-        is best to ensure that the sprite width and heights are even.
-        
-        If the sprite is discontinuous (some pixels are not touching) they can appear as separate sprites. To connect 
-        sprite pixels you can use a very faint alpha pixel (alpha value = 1 (of 255)) to connect them or designate a 
-        linking/bounding colour. All pixels of this colour will be considered scaffolding and removed from image 
-        
-        > **NOTE** scaffold pixels has not yet been implemented. This features usage may change.
-        
-        > **Note** it is recommended that you use this function to local the sprites during production and then add the sprite list to the image at load time in the release version of your code. This will greatly improve load time and prevent complications that can result if you apply filters or transformations (scale) to the image.
-        
-        Arguments
-            image  The image to scan. Must be from same domain or have COREs clearance.
-            
-        Returns 
-            image  If the image is unmodified then the original is returned. If modified then a new copy is returned
+   EZSprites.sprites.locateSprites (image,options) // more to add
+   
 
             
 Notes on sprites.
@@ -82,8 +59,10 @@ Notes on sprites.
     
     Standard sprites 
         Just hold details of where on the sprite sheet the sprite is.
+    Origin sprites
+        These sprite include the offset from the top left of the sprite to the origin. The origin is the point the sprite rotates around and the point on the sprite that is placed at the x,y coordinate of draw commands.
     
-    Virtual 
+    Virtual **THIS HAS BEEN REMOVED AND REPLACED BY ORIGIN Sprite**
         A virtual sprite is a sprite who's size is larger then the pixels contained on the sprite sheet. When you have a character that has a lot of movement the size of the pixels it contains can vary between frames. Rather than waste space on the sprite sheet, and waste rendering time rendering transparent pixels, the virtual sprite allows you to have all sprites the same virtual size. That may be 128 by 128 pixels, but the actual sprite on the sprite sheet is only 28by28, the next may be 32 by 16. But when you render it will be treated as a fixed size.
     
     Each sprite in the array has one of the following structures
@@ -91,7 +70,12 @@ Notes on sprites.
     Standard sprite
         x,y The top left coordinated of the sprite on the sprite sheet.
         w,h The width and height of the sprite on the sprite sheet.
-    Virtual sprite
+    Origin sprite
+        x,y The top left coordinated of the sprite on the sprite sheet.
+        w,h The width and height of the sprite on the sprite sheet.
+        cx,cy The offset from x,y to the sprite origin.
+    
+    Virtual sprite  **THIS HAS BEEN REMOVED AND REPLACED BY ORIGIN Sprite**
         x,y The top left coordinated of the sprite on the sprite sheet.
         w,h The width and height of the sprite on the sprite sheet.
         vx,vy The offset from the virtual top left of the sprite to the top left pixel on the sprite sheet
@@ -244,7 +228,17 @@ EZSprite properties
             Recalls last transform set by setLocal, or setWorldLocal
         setDefaults()
             Restores used context settings to canvas default. globalAlpha, currentTransform, globalCompositeOperation.
-        
+        matrix 
+            create(a,b,c,d,e,f)
+            multiplyPoint(mA,x,y,point)
+            mutiply(mA,mB,mRes)
+            inverse(mA,mRes)
+    links
+        create(x,y,scale,rotate,rotateOffset)
+        makeNameable(link)
+        add(parent,x,y,scale,rotate,rotateOffset)
+        update(link)
+        setTransform(link)
     world  
         Use to set world coordinates
         
@@ -768,6 +762,60 @@ var EZSprites = (function(){
             ctx.globalAlpha = 1;
             FX.normal();
         },
+        matrix : {
+            create : function(a,b,c,d,e,f){
+                if(f === undefined){
+                    var resM = {};
+                    resM.e = a;
+                    resM.f = b;
+                    if(e === undefined){
+                        resM.d = resM.a = Math.cos(d) * c;
+                        resM.c = -(resM.b = Math.sin(d) * c);
+                        return resM;
+                    }
+                    resM.d = (resM.a = Math.cos(e)) * d;
+                    resM.c = -(resM.b = Math.sin(e)) * d;
+                    resM.a *= c;
+                    resM.b *= c;
+                    return resM;
+                }
+                return {a:a, b:b, c:c, d:d, e:e, f:f };
+            },
+            multiplyPoint : function(mA,x,y,point){
+                if(point === undefined){
+                    point = {};
+                }
+                point.x = x * mA.a + y * mA.c + mA.e;
+                point.y = x * mA.b + y * mA.d + mA.f;
+                return point;
+            },
+            mutiply : function(mA,mB,mRes){ // mRes = mA * mB
+                if(mRes === undefined){
+                    mRes = {};
+                }
+                mRes.a = mA.a *  mB.a + mA.c * mB.b;
+                mRes.b = mA.b *  mB.a + mA.d * mB.b;
+                mRes.c = mA.a * mB.c + mA.c * mB.d;
+                mRes.d = mA.b * mB.c + mA.d * mB.d;
+                mRes.e = mA.a * mB.e + mA.c * mB.f + mA.e;
+                mRes.f = mA.b * mB.e + mA.d * mB.f + mA.f;
+                return mRes;
+            },
+            inverse : function(mA,mRes){
+                if(mRes === undefined){
+                    mRes = {};
+                }
+                var d =  mA.a * mA.d - mA.b * mA.c;
+                mRes.a  = mA.d / d;
+                mRes.b  = -mA.b / d;
+                mRes.c  = -mA.c / d;
+                mRes.d  = mA.a / d;
+                mRes.e = (mA.c * mA.f - mA.d * mA.e) / d;
+                mRes.f = -(mA.a * mA.f - mA.b * mA.e) / d;
+                
+                return mRes;                
+            }
+        },
         setWorldLocal : function(x,y,scaleX,scaleY,rotation){                
             if(rotation === undefined){  // if just one scale passed
                 rotation = scaleY;
@@ -941,15 +989,16 @@ var EZSprites = (function(){
         link.setTransform = setTransform.bind(link);
         return link;                    
     }
-
-    
     const links = {
-        create : function(x,y,scale,rotate){
+        create : function(x,y,scale,rotate,rotateOffset){
             var link = {};
             link.x = x;
             link.y = y;
             link.scale = scale;
             link.rotate = rotate;
+            rotateOffset = rotateOffset !== undefined ? rotateOffset : 0;
+            link.rotateOffset = rotateOffset;
+            rotate += rotateOffset;
             xdx = Math.cos(rotate) * scale;
             xdy = Math.sin(rotate) * scale;
             link.transform = {};
@@ -965,13 +1014,17 @@ var EZSprites = (function(){
             link.names = []; // holds array of the names
             link.addNamed = links.addNamed.bind(link);
         },
-        add : function(parent,x,y,scale,rotate){
+        add : function(parent,x,y,scale,rotate,rotateOffset){
             var link = {};
             link.parent = parent;
             link.x = x;
             link.y = y;
             link.scale = scale;
             link.rotate = rotate;
+            rotateOffset = rotateOffset !== undefined ? rotateOffset : 0;
+            link.rotateOffset = rotateOffset;
+            rotate += rotateOffset;
+            
             xdx = Math.cos(rotate) * scale;
             xdy = Math.sin(rotate) * scale;
             link.transform = {};
@@ -995,8 +1048,8 @@ var EZSprites = (function(){
             return link;                    
         },
         update : function(link){
-            xdx = Math.cos(link.rotate) * link.scale;
-            xdy = Math.sin(link.rotate) * link.scale;
+            xdx = Math.cos(link.rotate + link.rotateOffset) * link.scale;
+            xdy = Math.sin(link.rotate + link.rotateOffset) * link.scale;
             _x = link.x;
             _y = link.y;
             if(link.parent){
@@ -1062,6 +1115,12 @@ var EZSprites = (function(){
             retPosition.x = x * transform.sx + transform.x;
             retPosition.y = y * transform.sy + transform.y;
             return retPosition;
+        },
+        getScaleX : function(){
+            return transform.sx
+        },
+        getScaleY : function(){
+            return transform.sy
         },
         getWorld : function(retTransform){
             if(retTransform === undefined){
@@ -1198,12 +1257,7 @@ var EZSprites = (function(){
             ctx.globalAlpha = alpha;
             sh = spr.h;
             sw = spr.w;
-            if(spr.vx !== undefined){  // virtual sprite dimensions
-                _x = -spr.vw / 2 + spr.vx;
-                _y = -spr.vh / 2 + spr.vy;
-                ctx.drawImage(image, spr.x, spr.y, sw, sh, _x, _y, sw, sh);
-                return;
-            }else if(spr.cx !== undefined){
+            if(spr.cx !== undefined){
                 ctx.drawImage(image, spr.x, spr.y, sw, sh, -spr.cx, -spr.cy, sw, sh);
                 return;
             }
@@ -1219,12 +1273,7 @@ var EZSprites = (function(){
             xdy = Math.sin(rotation) * scale;
             ctx.transform(xdx, xdy, -xdy, xdx, x, y);
             ctx.globalAlpha = alpha;
-            if(spr.vx !== undefined){  // virtual sprite dimensions
-                _x = -spr.vw / 2 + spr.vx;
-                _y = -spr.vh / 2 + spr.vy;
-                ctx.drawImage(image, spr.x, spr.y, sw, sh, _x, _y, sw, sh);
-                return;
-            }else if(spr.cx !== undefined){
+            if(spr.cx !== undefined){
                 ctx.drawImage(image, spr.x, spr.y, sw, sh, -spr.cx, -spr.cy, sw, sh);
                 return;
             }
@@ -1240,12 +1289,7 @@ var EZSprites = (function(){
             xdy = Math.sin(rotation) * scale;
             ctx.transform(xdx, xdy, -xdy, xdx, x, y);
             ctx.globalAlpha = alpha;
-            if(spr.vx !== undefined){  // virtual sprite dimensions
-                _x = -spr.vw / 2 + spr.vx;
-                _y = -spr.vh / 2 + spr.vy;
-                ctx.drawImage(image, spr.x, spr.y, sw, sh, _x, _y, sw, sh);
-                return;
-            }else if(spr.cx !== undefined){
+            if(spr.cx !== undefined){
                 ctx.drawImage(image, spr.x, spr.y, sw, sh, -spr.cx, -spr.cy, sw, sh);
                 return;
             }
@@ -1320,12 +1364,6 @@ var EZSprites = (function(){
             ctx.setTransform(scaleX, 0, 0, scaleY, x, y);
             ctx.rotate(rotation);
             ctx.globalAlpha = alpha;
-            if(spr.vx !== undefined){  // virtual sprite dimensions
-                _x = -centerX + spr.vx;
-                _y = -centerY + spr.vy;
-                ctx.drawImage(image, spr.x, spr.y, sw, sh, _x, _y, sw, sh);
-                return;
-            }
             ctx.drawImage(image, spr.x, spr.y, sw, sh, -centerX, -centerY, sw, sh);
         },
         drawWorldCenterScaled : function (image, index, x, y, centerX, centerY, scaleX, scaleY, rotate, alpha) {
@@ -1336,12 +1374,6 @@ var EZSprites = (function(){
             ctx.transform(scaleX, 0, 0, scaleY, x, y);
             ctx.rotate(rotation);
             ctx.globalAlpha = alpha;
-            if(spr.vx !== undefined){  // virtual sprite dimensions
-                _x = -centerX + spr.vx;
-                _y = -centerY + spr.vy;
-                ctx.drawImage(image, spr.x, spr.y, sw, sh, _x, _y, sw, sh);
-                return;
-            }
             ctx.drawImage(image, spr.x, spr.y, sw, sh, -centerX, -centerY, sw, sh);
         },
         drawLocalCenterScaled : function (image, index, x, y, centerX, centerY, scaleX, scaleY, rotation, alpha) {
@@ -1351,12 +1383,6 @@ var EZSprites = (function(){
             ctx.transform(scaleX, 0, 0, scaleY, x, y);
             ctx.rotate(rotation);
             ctx.globalAlpha = alpha;
-            if(spr.vx !== undefined){  // virtual sprite dimensions
-                _x = -centerX + spr.vx;
-                _y = -centerY + spr.vy;
-                ctx.drawImage(image, spr.x, spr.y, sw, sh, _x, _y, sw, sh);
-                return;
-            }
             ctx.drawImage(image, spr.x, spr.y, sw, sh, -centerX, -centerY, sw, sh);
         },
         drawAsLine : function (image, index, x1, y1, x2, y2, scale, alpha) {
@@ -1514,8 +1540,8 @@ var EZSprites = (function(){
                 }
             }
         },
-        locateSprites : function(image){
-            var w,h,c,ct,size,imgData,index,extent,sprites,x,y;
+        locateSprites : function(image,options){
+            var w,h,c,ct,size,imgData,index,extent,sprites,x,y,spr;
             function findSprite(){
                 while(index < size && imgData[index] === 0){
                     index ++;
@@ -1533,7 +1559,11 @@ var EZSprites = (function(){
             size = w * h;
             ct = c.getContext("2d");
             ct.drawImage(image,0,0);
-            imgData = new Uint32Array(ct.getImageData(0,0,w,h).data.buffer);
+            try{
+                imgData = new Uint32Array(ct.getImageData(0,0,w,h).data.buffer);
+            }catch(e){
+                return undefined;
+            }
             index = 0;
             extent = {minx:null,maxx:null,miny:null,maxy:null};
             sprites = [];
@@ -1542,12 +1572,25 @@ var EZSprites = (function(){
                 y = Math.floor(index / w);
                 extent.minx = null;
                 floodFillExtentAll(x,y,w,h,imgData,extent);
-                sprites.push({
+                
+                sprites.push(spr = {
                     x : extent.minx,
                     y : extent.miny,
                     w : extent.maxx - extent.minx + 1,
                     h : extent.maxy - extent.miny + 1,
                 });
+                if(options){
+                    if(options.center){
+                        spr.cx = spr.w / 2;
+                        spr.cy = spr.h / 2;
+                    }else if(options.origin !== undefined){
+                        spr.cx = spr.w * options.origin;
+                        spr.cy = spr.h * options.origin;
+                    }else if(options.originX !== undefined){
+                        spr.cx = spr.w * options.originX;
+                        spr.cy = spr.h * (options.originY !== undefined ? options.originY : options.originX);
+                    }
+                }
                     
             }
             image.sprites = sprites;
@@ -1608,8 +1651,10 @@ var EZSprites = (function(){
     }
     function correctForContext(){// setup any context specific functionality.
         var tempCtx = document.createElement("canvas").getContext("2d")
-        if(tempCtx.mozImageSmoothingEnabled !== undefined){
-            FX.filter = FX.filterMoz;
+        if(tempCtx.imageSmoothingEnabled === undefined){
+            if(tempCtx.mozImageSmoothingEnabled !== undefined){
+                FX.filter = FX.filterMoz;
+            }
         }
         if(tempCtx.mozCurrentTransform !== undefined){
             context.transform = context.transformMoz;

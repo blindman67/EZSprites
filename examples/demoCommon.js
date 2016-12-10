@@ -1,5 +1,10 @@
 //==============================================================================
 // helper function
+// $(element); // do nothing and return the element
+// $("query"); // query select all
+// $("elementName",{}); // create element second argument is properties
+// $("elementName","id"); // create element set id = id
+// $("query",n); // query and return the n th element in the query array Neg number from last element 
 function $(query,q1,index){  // query 
     const setProperties = (src,dest) => {
         for(var i in src){
@@ -12,7 +17,8 @@ function $(query,q1,index){  // query
     }
     if(typeof q1 === "number"){        
         if(typeof query === "string"){
-            return document.querySelectorAll(query)[q1];
+            var nl = document.querySelectorAll(query);
+            return nl[(q1 < 0 ? nl.length + (q1 < -nl.length ? -nl.length: q1) : q1 >= nl.length ? nl.length-1 : q1)];
         }
         return query;
     }
@@ -101,9 +107,21 @@ function $B(element,keep){  // keep is a string with LTRBWH and defines what pro
     if(keep.indexOf("H") > -1){rect.height = b.height;}
     return rect;
 }
+// element can be an array of element or queries
 function $E(element,types,listener){ // adds event listeners
     if(typeof types === "string"){
         types = types.split(",");
+    }
+    if(Array.isArray(element)){
+        element.forEach((e,i) => {
+            e = $(e,0);
+            types.forEach(t=>{
+                e.addEventListener(t,listener)    
+            });
+            element[i] = e;
+        });
+        return element;
+        
     }
     element = $(element,0);
     types.forEach(t=>{
@@ -112,7 +130,20 @@ function $E(element,types,listener){ // adds event listeners
     return element;
 }
 
-
+function downloadText(text, filename) {
+    var downloaderLnk = document.createElement('a');
+    var e;
+    var blob = new Blob([text], {type : 'text/txt'}); //new way
+    downloaderLnk.href = URL.createObjectURL(blob);
+    downloaderLnk.download = filename;
+    if (document.createEvent) {
+        e = document.createEvent("MouseEvents");
+        e.initMouseEvent("click", true, true, window, 0, 0, 0, 0, 0, false, false, false,false, 0, null);
+        downloaderLnk.dispatchEvent(e);
+    } else if (downloaderLnk.fireEvent) {
+        downloaderLnk.fireEvent("onclick");
+    }
+}
 var pageHead;
 var demoInstructions;
 var info;
@@ -123,11 +154,16 @@ function addExtras(title,instrut){
     $$(document.body,info = $("div",{id:"stats",className:"pageInfo"}));
 
 }
+var log = function(data){
+    demoInstructions.textContent = data;
+}
 const links = [
     ["../tank/tankDemo.html","Local coordinates"],
     ["../worldTank/tankDemo.html","World coordinates"],
     ["../particles/particles.html","Particles"],
     ["../linking/linking.html","Link sprites"],
+    ["../spriteSheet/spriteSheet.html","Sprite sheets"],
+    ["http://localhost/MarksHome/GameEngine.html","Groover home"],
     ["https://github.com/blindman67/EZSprites","Github"],
 ]
 
@@ -240,7 +276,7 @@ const addForker = (function(){
                 alpha.value = 1;
                 scale.value = 1.2;
                 mouseCanvas.canvas.title = "Fork me at Github";
-                mouseCanvas.canvas.style.cursor = "pointer";
+                mouseCanvas.cursor = "pointer";
                 if(mouse.buttonRaw & 1){
                     location = "https://github.com/blindman67/EZSprites";
                 }
@@ -249,7 +285,6 @@ const addForker = (function(){
                 alpha.value = 0.8;
                 scale.value = 0.8;
                 mouseCanvas.canvas.title = "";
-                mouseCanvas.canvas.style.cursor = "default";
                 drawGit = gitSleep;
             }
         }
@@ -271,7 +306,26 @@ const mMath = (function(){
             x = x < 0 ? 0 : x > 1 ? 1 : x;
             xx = Math.pow(x,pow);
             return xx / ( xx + Math.pow(1 - x, pow));
-        }
+        },
+        randInt : function(min, max){
+            if(max === undefined){
+                return Math.floor(Math.random() * min);
+            }
+            return  Math.floor(Math.random() * (max - min)) + min;
+        },
+        rand : function(min, max){
+            if(max === undefined){
+                return Math.random() * min;
+            }
+            return  Math.random() * (max - min) + min;
+        },
+        randBell : function(min, max){
+            if(max === undefined){
+                return (Math.random() + Math.random() + Math.random() + Math.random()) * 0.25 * min;
+            }
+            return  (Math.random() + Math.random() + Math.random() + Math.random()) * 0.25 * (max - min) + min;
+        },
+            
     } 
     return API;
     

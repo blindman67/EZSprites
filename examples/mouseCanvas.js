@@ -16,10 +16,10 @@ var mouseCanvas = (function(){
     resizeCanvas = function () {
         if (canvas === undefined) {
             canvas = createCanvas();
+            ctx = canvas.getContext("2d");
         }
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
-        ctx = canvas.getContext("2d");
         if (typeof setGlobals === "function") {
             setGlobals();
         }
@@ -156,9 +156,11 @@ var mouseCanvas = (function(){
             }
             
         }
+        canvas.style.cursor = API.cursor;
+        API.cursor = "default";
 
     }
-    return {
+    var API = {
         start : function(){
             resizeCanvas();
             mouse.start(canvas, true);
@@ -180,6 +182,8 @@ var mouseCanvas = (function(){
         mouse : mouse,
         canvas : canvas,
         ctx : ctx ,
+        cursor : "default",
     }
+    return API;
         
 })();
