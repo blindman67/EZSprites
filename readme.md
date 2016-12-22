@@ -1,7 +1,11 @@
 #EZSprites
 
 
-- EZSprites is a work in progress.
+- **EZSprites is a work in progress.**
+- Please note that the documentation is currently out of date. Many functions are not documented and other functionality has been removed
+- The spriteSheets demo is also not complete and will most likely be completely redesigned or removed.
+
+I am just one person and do not have the resources to give this project my full attention so progress to completion is continuous it may be a few more months before I would consider it bullet proof and in its final configuration.
 
 ----
 ##The low down

@@ -7,7 +7,7 @@ Its all about performance.
     
     EZSprites is no exception and is designed with performance in mind. There is hence no error checking or vetting in this code as this adds overhead reduces the amount of code that is dedicated to the game per frame. As a user of this utility you need to be careful and code in such a way as to avoid sending bad values to EZSprites function.
     
-    One potential source of error is the sprite sheet index that you pass as a second argument to the EZSprites.sprites functions. If you pass an index that is out of range the default JavaScript error will be thrown. There is no acceptable default behaviour that can solve this problem (don't draw anything ??, use a place holder image??? are just as bad as crashing). So be carefull.
+    One potential source of error is the sprite sheet index that you pass as a second argument to the EZSprites.sprites functions. If you pass an index that is out of range the default JavaScript error will be thrown. There is no acceptable default behaviour that can solve this problem (don't draw anything ??, use a place holder image??? are just as bad as crashing). So be careful.
     
     **Pools and static memory.**
     
@@ -194,7 +194,7 @@ EZSprite properties
         softLight()
         overlay()
         difference()
-        exclution()
+        exclusion()
         hue()
         saturation()
         color()
@@ -283,7 +283,7 @@ EZSprite properties
         softLight
         overlay
         difference
-        exclution
+        exclusion
         hue
         saturation
         color
@@ -377,7 +377,7 @@ var EZSprites = (function(){
         softLight : "soft-light",
         overlay : "overlay",
         difference : "difference",
-        exclution : "exclusion",
+        exclusion : "exclusion",
         hue : "hue",
         saturation : "saturation",
         color : "color",
@@ -405,7 +405,7 @@ var EZSprites = (function(){
         softLight : "soft-light",
         overlay : "overlay",
         difference : "difference",
-        exclution : "exclusion",
+        exclusion : "exclusion",
         hue : "hue",
         saturation : "saturation",
         color : "color",
@@ -569,7 +569,7 @@ var EZSprites = (function(){
         softLight : function(){ ctx.globalCompositeOperation = "soft-light"; },
         overlay : function(){ ctx.globalCompositeOperation = "overlay"; },
         difference : function(){ ctx.globalCompositeOperation = "difference"; },
-        exclution : function(){ ctx.globalCompositeOperation = "exclusion"; },
+        exclusion : function(){ ctx.globalCompositeOperation = "exclusion"; },
         hue : function(){ ctx.globalCompositeOperation = "hue"; },
         saturation : function(){ ctx.globalCompositeOperation = "saturation"; },
         color : function(){ ctx.globalCompositeOperation = "color"; },
