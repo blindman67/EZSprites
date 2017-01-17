@@ -1647,7 +1647,95 @@ var EZSprites = (function(){
                 }
             }
             return sprites;
-        }
+        },
+        decodeGrooverSpriteImage : function(image){ // Only reads Groover sprites encoder V2 formats
+            var data,lines,pos,x,y,groupCount,groupIndexs,w,h,c,ct;
+            function readByte(){
+                if((pos % 4) === 3){ pos += 1 };// skip alpha
+                if(pos >= data.length){ throw new Error("Could not decode Groover sprites. Buffer overrun!"); }
+                return data[pos++];
+            }
+            function readLong(){  // 24 bit long
+                return (readByte() << 16) + (readByte() << 8) + readByte();
+            }
+            function readLoc(){ // read location pair 12 bits each unsigned
+                var dat = readLong();
+                x = dat >> 12; y = dat & 0xFFF;
+            }
+            function readLocSigned(){ // read location pair 11 bits each and one sign bit
+                var dat = readLong();
+                x = (dat >> 12) & 0x7FF; x = dat & 0x800000 ? -x : x;
+                y = dat & 0x7FF;  y = dat & 0x800 ? -y : y;
+            }
+            function readString(leng){
+                var str = "";
+                for(var i = 0; i < leng; i ++){ str += String.fromCharCode(readByte()); }
+                return str;
+            }
+            var packReader = {
+                Sm : function (){ // simple sprites
+                    var sprite = {};
+                    readLoc(); sprite.x = x; sprite.y = y;
+                    readLoc(); sprite.w = x; sprite.h = y;
+                    sprite.cx = (sprite.w / 2); sprite.cy = (sprite.h / 2);
+                    return sprite;
+                }, Gr : function(){ // EZSprites does not support Grouped sprites currently
+                    var sprite = this.SI();
+                    readLocSigned(); sprite.cx += x; sprite.cy += y;
+                    readLoc(); groupIndexs.push(x); groupCount = Math.max(x, groupCount);
+                    return sprite;
+                }, Mi : function(){   // EZSprites does not support mirrors sprites currently
+                    var sprite = this.GR(); 
+                    sprite.mx = y & 0x800 ? -1 : 1;
+                    sprite.my = y & 0x400 ? -1 : 1;
+                    sprite.r = y & 0x200 ? Math.PI / 2 : 0;
+                    return sprite;
+                }  
+            }
+            w = image.width;
+            h = image.height;
+            c = document.createElement("canvas");
+            c.width = w;
+            c.height = h;
+            size = w * h;
+            ct = c.getContext("2d");
+            ct.drawImage(image,0,0);              
+            data = ct.getImageData(w - 1, h - 1,1,1).data;
+            lines = data[2];
+            if(lines === 0 || lines >= h){
+                throw new Error("This is not a Groover encoded sprite image. Too many lines!");
+            }
+            pos = 0;                
+            data = ct.getImageData(0, h - lines,w,lines).data;
+            var type, spriteCount;
+            if(readString(7) !== "GROOVER"){
+                throw new Error("This is not a Groover encoded sprite image. Incorrect data header!");
+            }                                    
+            type = packReader[readString(2)]; // `SI` = simple list GR = Grouped list, GB = Grouped list with sprite Mirror  
+            if(type === undefined){
+                throw new Error("Could not decode Groover sprites unknown data type!");
+            }                
+            spriteCount = readLong();
+            if(spriteCount <= 0){
+                throw new Error("Could not decode Groover sprites incorrect or zero sprite count found!");
+            }
+            var sprites = [];
+            var groups = [];
+            groupCount = 0;
+            for(var i = 0; i < spriteCount; i++){
+                sprites.push(type());
+            }
+            if(sprites[0].group !== undefined){
+                for(var i = 0; i < groupCount; i++){
+                    groups[i] = [];
+                }
+                for(var i = 0; i < spriteCount; i++){
+                    groups[groupIndexs[i]].push(i);
+                }
+                images.groups = groups;
+            }
+            image.sprites = sprites;
+        }        
     }
     function correctForContext(){// setup any context specific functionality.
         var tempCtx = document.createElement("canvas").getContext("2d")

@@ -162,9 +162,15 @@
                     if(mouse.w > 0){
                         EZSprites.world.zoom2Screen(mouse.x,mouse.y,ZOOM_AMOUNT,true);
                         mouse.w -= ZOOM_WHEEL_STEPS;
+                        if(mouse.w < 0){
+                            mouse.w = 0;
+                         }
                     }else{
                         EZSprites.world.zoom2Screen(mouse.x,mouse.y,ZOOM_AMOUNT,false);
                         mouse.w += ZOOM_WHEEL_STEPS
+                        if(mouse.w > 0){
+                            mouse.w = 0;
+                        }
                     }
                     mouseWorld = EZSprites.world.screen2World(mouse.x,mouse.y,mouseWorld);
                     EZSprites.world.getWorld(currentWorld);
