@@ -318,8 +318,6 @@ var EZSprites = (function(){
     // rotation is calculated rather than use the function ctx.rotate(rot). The difference is small 2/1000000th second
     // but why not do it best.
     var xdx,xdy; // for rotation and scale.
-    
-    
     var transform = {
         x : 0,
         y : 0,
@@ -332,17 +330,15 @@ var EZSprites = (function(){
     var heldTransformInv;
     var currentTransformStack = [];
     var ctStackTop = 0;
-    
-    var local = { // local transform
+    const local = { // local transform
         x : 0,
         y : 0,
         scaleX : 1,
         scaleY : 1,
         rotate : 0,
     }    
-    function resetAll(staticMemoryCount){
+    function resetAll(staticMemoryCount = 16){
         var i;
-        staticMemoryCount = staticMemoryCount === undefined ? 16 : staticMemoryCount;
         ctxStackTop = 0;
         tStackTop = 0;
         transformStack = [];
@@ -354,9 +350,7 @@ var EZSprites = (function(){
             compModeStack.push(null);
             globalTransform.pushWorld(0,0,1);
         }
-        for(i = 0; i < staticMemoryCount; i += 1){
-            globalTransform.popWorld();
-        }
+        for (i = 0; i < staticMemoryCount; i += 1) { globalTransform.popWorld() }
         ctx = null;
         transform.x = 0;
         transform.y = 0;
@@ -364,7 +358,7 @@ var EZSprites = (function(){
         transform.sy = 1;
         compModeStackTop = 0;
     }
-    var compModesNames = { // darker // has limited support so not included 
+    const compModesNames = { // darker // has limited support so not included 
         normal : "source-over",
         lighter : "lighter",
         glow : "lighter",
@@ -392,7 +386,7 @@ var EZSprites = (function(){
         copy : "copy",
         xor : "xor",
     }
-    var compModeFXNames = {
+    const compModeFXNames = {
         normal : "source-over",
         lighter : "lighter",
         glow : "lighter",
@@ -411,11 +405,10 @@ var EZSprites = (function(){
         color : "color",
         luminosity : "luminosity",
     }
-        
-    var FXNames = Object.keys(compModeFXNames);
+    const FXNames = Object.keys(compModeFXNames);
     var compModeStack = [];
     var compModeStackTop = 0;
-    const getImageData = function(image,format){
+    const getImageData = function (image, format){
         var w,h,c,ct;
         w = image.width;
         h = image.height;
@@ -441,13 +434,8 @@ var EZSprites = (function(){
         var maxy = 0;
 
         var checkColour = function(x,y){
-            if( x<0 || y < 0 || y >=h || x >= w){
-                return false;
-            }
-            var ind = y * w + x;
-            if( data[ind] !== 0 ){
-                return true;
-            }
+            if ( x<0 || y < 0 || y >=h || x >= w) { return false }
+            if ( data[y * w + x] !== 0 ) { return true }
             return false;
         }
         var setPixel = function(x,y){
@@ -464,15 +452,9 @@ var EZSprites = (function(){
             var pos = stack.pop();
             x = pos[0];
             y = pos[1];
-            while (checkColour(x,y-1)) {
-                y -= 1;
-            }
-            if(!checkColour(x-1,y) && checkColour(x-1,y-1)){
-                stack.push([x-1,y-1]);
-            }
-            if(!checkColour(x+1,y) && checkColour(x+1,y-1)){
-                stack.push([x+1,y-1]);
-            }
+            while (checkColour(x,y-1)) { y -= 1 }
+            if(!checkColour(x-1,y) && checkColour(x-1,y-1)){ stack.push([x-1,y-1]) }
+            if (!checkColour(x+1,y) && checkColour(x+1,y-1)) { stack.push([x+1,y-1]) }
             lookLeft = false;
             lookRight = false;
             while (checkColour(x,y)) {
@@ -482,35 +464,21 @@ var EZSprites = (function(){
                         stack.push([x - 1, y]);
                         lookLeft = true;
                     }
-                } else 
-                if (lookLeft) {
-                    lookLeft = false;
-                }
+                } else if (lookLeft) { lookLeft = false }
                 if (checkColour(x+1,y)) {
                     if (!lookRight) {
                         stack.push([x + 1, y]);
                         lookRight = true;
                     }
-                } else 
-                if (lookRight) {
-                    lookRight = false;
-                }
+                } else if (lookRight) { lookRight = false }
                 y += 1;
             }
             // check down left 
-            if(checkColour(x-1,y) && !lookLeft){
-                stack.push([x-1,y]);
-            }
-            if(checkColour(x+1,y) && !lookRight){
-                stack.push([x+1,y]);
-            }
+            if(checkColour(x-1,y) && !lookLeft){ stack.push([x-1,y]) }
+            if(checkColour(x+1,y) && !lookRight){ stack.push([x+1,y]) }
         }
         // zero all pixels inside extent
-        for(y = miny; y <= maxy; y ++){
-            for(x = minx; x <= maxx; x++){
-                data[y * w + x] = 0;
-            }
-        }
+        for (y = miny; y <= maxy; y += 1) { for(x = minx; x <= maxx; x+= 1){ data[y * w + x] = 0 } }
         if(extent === undefined){
             extent = {};
             extent.minx = minx;
@@ -533,9 +501,8 @@ var EZSprites = (function(){
         return extent;
     }        
     const FX = {
-        setCompMode : function(name){
-            ctx.globalCompositeOperation = compModes[name];
-        },
+        namedFX :  FXNames,      
+        setCompMode : function(name){ ctx.globalCompositeOperation = compModes[name] },
         pushCompMode : function(name){
             compModeStack[compModeStackTop++] = ctx.globalCompositeOperation;
             ctx.globalCompositeOperation = compModes[name];
@@ -546,16 +513,9 @@ var EZSprites = (function(){
                 ctx.globalCompositeOperation = compModes[name];
             }
         },
-        getCompMode : function(){
-            return ctx.globalCompositeOperation;
-        },
-        filter : function(val){
-            ctx.imageSmoothingEnabled = val === true;
-        },
-        filterMoz : function(val){
-            ctx.mozImageSmoothingEnabled = val === true;
-        },    
-        namedFX :  FXNames,      
+        getCompMode : function(){ return ctx.globalCompositeOperation },
+        filter : function(val){ ctx.imageSmoothingEnabled = val === true },
+        filterMoz : function(val){ ctx.mozImageSmoothingEnabled = val === true },    
         normal : function(){ ctx.globalCompositeOperation = "source-over"; },
         sourceOver : function(){ ctx.globalCompositeOperation = "source-over"; },
         lighter : function(){ ctx.globalCompositeOperation = "lighter"; },
@@ -584,163 +544,17 @@ var EZSprites = (function(){
         copy :function(){ ctx.globalCompositeOperation =  "copy"; },
         xor : function(){ ctx.globalCompositeOperation = "xor"; },           
     }     
-  
-    const collision = {
-        createRadialPerimiterMap : function(image,spriteIndex,imageData, rCount = 32){
-            // creates a perimeter map of a sprite or image
-            // if the image has sprite then supply the spriteIndex
-            // rCount (radial count) is the number of radial segments. High segment count do not effect the performance
-            // for all but the full collision test.
-            var max,min,i,maxRadius,rad,xx,yy,ind,count,perimeter,val,mean,c,x,y,w,h,data,dw;
-            if(image.sprites !== undefined){
-                x = image.sprites[spriteIndex].x;
-                y = image.sprites[spriteIndex].y;
-                w = image.sprites[spriteIndex].w;
-                h = image.sprites[spriteIndex].h;                
-            }else{
-                x = 0;
-                y = 0;
-                w = image.width;
-                h = image.height;                
-            }
-            if(imageData !== undefined){
-                if(imageData.buffer === undefined){
-                    if(imageData.data !== undefined){
-                        data = new Uint32Array(imageData.data.buffer);
-                    }
-                }else{
-                    data = new Uint32Array(imageData.buffer);
-                }
-            }
-            if(data === undefined){
-                data = getImageData(image,"32bit");                
-            }
-            dw = image.width;
-
-            perimeter = {
-                dist :[],
-                min : undefined,
-                max : undefined,
-                mean : undefined,
-            };
-            max = -Infinity;
-            min = Infinity;
-            mean = 0;
-            c = 0;
-            maxRadius = Math.ceil(Math.sqrt(w*w+h*h)/2)+2;
-            for(i = 0; i < PI2; i += PI2/rCount, count ++){
-                rad = maxRadius;
-                do{
-                    xx = Math.round(Math.cos(i) * rad + x + w/2);
-                    yy = Math.round(Math.sin(i) * rad + y + h/2);
-                    if(xx >= x && xx < x+w && yy >= y && yy < y + h){
-                        ind = xx * 4 + yy * iw4;
-                        val = data[xx + yy * dw];
-                    }else{
-                        val = 0;
-                    }
-                    rad -= 1;
-                }while(val === 0 && rad > -1)
-                rad += 1;
-                min = Math.min(min,rad);
-                max = Math.max(max,rad);
-                mean += rad;
-                c += 1;
-                perimiter.dist.push(rad);
-            }
-            perimiter.max = max;
-            perimiter.min = min;
-            perimiter.mean = mean / c; 
-            return perimiter;
-        },
-        testPerimiterCollision : function(image1,sprIndex1,x1,y1,s1,r1,image2,sprIndex2,x2,y2,s2,r2,details){
-            var dist,x,y,p1,p2,d1,d2,dir,dist1,dist2;
-            if(image1.sprites !== undefined){
-                p1 = image1.sprites[sprIndex1].perim;
-            }else{
-                p1 = image1.perim;
-            }
-            if(image2.sprites !== undefined){
-                p2 = image2.sprites[sprIndex2].perim;
-            }else{
-                p2 = image2.perim;
-            }
-            details.dx = x = x2-x1;
-            details.dy = y = y2-y1;
-            details.dist = dist = Math.sqrt(x*x + y*y);
-            if(dist < p1.max * s1 + p2.max * s2){
-                details.dir = dir = Math.atan2(y,x);
-                d1 = dir - r1;
-                d2 = dir + Math.PI - r2;
-                d1 = (((d1 % PI2) + PI2 ) % PI2) / PI2;
-                d2 = (((d2 % PI2) + PI2 ) % PI2) / PI2;
-                d1 = Math.round(d1 * p1.dist.length) % p1.dist.length;
-                d2 = Math.round(d2 * p2.dist.length) % p2.dist.length;
-                dist1 = p1.dist[d1] * s1;
-                dist2 = p2.dist[d2] * s2;
-                if(dist < dist1 + dist2){
-                    var rat = dist1 / (dist1 + dist2);
-                    var xx = x1 + x * rat;
-                    var yy = y1 + y * rat;
-                    x /= dist;
-                    y /= dist;
-                    details.x1 = xx - x * dist1;
-                    details.y1 = yy - y * dist1;
-                    details.d1 = dist1;
-                    details.x2 = xx + x * dist2;
-                    details.y2 = yy + y * dist2;
-                    details.d2 = dist2;
-                    details.cx = xx;
-                    details.cy = yy;
-                    details.dir = dir;    
-                    details.dist =dist1 + dist2;
-                    return true;
-                }
-            }
-            return false;
-        },        
-        testPerimiterCollisionSimple : function(image1,sprIndex1,x1,y1,s1,r1,image2,sprIndex2,x2,y2,s2,r2){
-            var dist,x,y,p1,p2,d1,d2,dir,dist1,dist2;
-            if(image1.sprites !== undefined){
-                p1 = image1.sprites[sprIndex1].perim;
-            }else{
-                p1 = image1.perim;
-            }
-            if(image2.sprites !== undefined){
-                p2 = image2.sprites[sprIndex2].perim;
-            }else{
-                p2 = image2.perim;
-            }
-            x = x2-x1;
-            y = y2-y1;
-            dist = Math.sqrt(x*x + y*y);
-            if(dist < p1.max * s1 + p2.max * s2){
-                dir = Math.atan2(y,x);
-                d1 = dir - r1;
-                d2 = dir + Math.PI - r2;
-                d1 = (((d1 % PI2) + PI2 ) % PI2) / PI2;
-                d2 = (((d2 % PI2) + PI2 ) % PI2) / PI2;
-                d1 = Math.round(d1 * p1.dist.length) % p1.dist.length;
-                d2 = Math.round(d2 * p2.dist.length) % p2.dist.length;
-                dist1 = p1.dist[d1] * s1;
-                dist2 = p2.dist[d2] * s2;
-                if(dist < dist1 + dist2){
-                    return true;
-                }
-            }
-            return false;
-        }        
-        
+    const collision = {   // not implemented and will be part of another system        
     }
     const context = {
-        setCtx : function(_ctx){
+        setContext : function (_ctx){ this.setCtx(_ctx) }, // Alias function name for setCtx
+        setCtx : function (_ctx) {
             ctx = _ctx;
             w = ctx.canvas.width;
             h = ctx.canvas.height;
         },
-        getCtx : function(){
-            return ctx;
-        },
+        getContext : function () { return this.getCtx() }, // Alias function name for getCtx
+        getCtx : function () { return ctx },
         pushCtx : function(_ctx){
             ctxStack[ctxStackTop] = ctx;
             ctxStackTop += 1;
@@ -781,18 +595,12 @@ var EZSprites = (function(){
                 }
                 return {a:a, b:b, c:c, d:d, e:e, f:f };
             },
-            multiplyPoint : function(mA,x,y,point){
-                if(point === undefined){
-                    point = {};
-                }
+            multiplyPoint : function(mA,x,y,point = {}){
                 point.x = x * mA.a + y * mA.c + mA.e;
                 point.y = x * mA.b + y * mA.d + mA.f;
                 return point;
             },
-            mutiply : function(mA,mB,mRes){ // mRes = mA * mB
-                if(mRes === undefined){
-                    mRes = {};
-                }
+            mutiply : function(mA,mB,mRes = {}){ // mRes = mA * mB
                 mRes.a = mA.a *  mB.a + mA.c * mB.b;
                 mRes.b = mA.b *  mB.a + mA.d * mB.b;
                 mRes.c = mA.a * mB.c + mA.c * mB.d;
@@ -801,10 +609,7 @@ var EZSprites = (function(){
                 mRes.f = mA.b * mB.e + mA.d * mB.f + mA.f;
                 return mRes;
             },
-            inverse : function(mA,mRes){
-                if(mRes === undefined){
-                    mRes = {};
-                }
+            inverse : function(mA,mRes = {}){
                 var d =  mA.a * mA.d - mA.b * mA.c;
                 mRes.a  = mA.d / d;
                 mRes.b  = -mA.b / d;
@@ -1181,14 +986,14 @@ var EZSprites = (function(){
         },
     }
     const images = {
-        draw : function (image, x, y, scale, rotation, alpha) {
+        draw(image, x, y, scale, rotation, alpha) {
             xdx = Math.cos(rotation) * scale;
             xdy = Math.sin(rotation) * scale;
             ctx.setTransform(xdx, xdy, -xdy, xdx, x, y);
             ctx.globalAlpha = alpha;
             ctx.drawImage(image, -image.width / 2, -image.height / 2);
         },
-        drawWorld : function (image, x, y, scale, rotation, alpha) {
+        drawWorld(image, x, y, scale, rotation, alpha) {
             ctx.setTransform(transform.sx, 0, 0, transform.sy, transform.x, transform.y);
             xdx = Math.cos(rotation) * scale;
             xdy = Math.sin(rotation) * scale;
@@ -1196,33 +1001,33 @@ var EZSprites = (function(){
             ctx.globalAlpha = alpha;
             ctx.drawImage(image, -image.width / 2, -image.height / 2);
         },
-        drawLocal : function (image, x, y, scale, rotation, alpha) {
+        drawLocal(image, x, y, scale, rotation, alpha) {
             xdx = Math.cos(rotation) * scale;
             xdy = Math.sin(rotation) * scale;
             ctx.transform(xdx, xdy, -xdy, xdx, x, y);
             ctx.globalAlpha = alpha;
             ctx.drawImage(image, -image.width / 2, -image.height / 2);
         },
-        drawCenterScaled : function (image, x, y, centerX, centerY, scaleX, scaleY, rotate, alpha) {
+        drawCenterScaled(image, x, y, centerX, centerY, scaleX, scaleY, rotate, alpha) {
             ctx.setTransform(scaleX, 0, 0, scaleY, x, y);
             ctx.rotate(rotation);
             ctx.globalAlpha = alpha;
             ctx.drawImage(image, -centerX, -centerY);
         },
-        drawWorldCenterScaled : function (image, x, y, centerX, centerY, scaleX, scaleY, rotate, alpha) {
+        drawWorldCenterScaled(image, x, y, centerX, centerY, scaleX, scaleY, rotate, alpha) {
             ctx.setTransform(transform.sx, 0, 0, transform.sy, transform.x, transform.y);
             ctx.transform(scaleX, 0, 0, scaleY, x, y);
             ctx.rotate(rotation);
             ctx.globalAlpha = alpha;
             ctx.drawImage(image, -centerX, -centerY);
         },
-        drawLocalCenterScaled : function (image, x, y, centerX, centerY, scaleX, scaleY, rotation, alpha) {
+        drawLocalCenterScaled(image, x, y, centerX, centerY, scaleX, scaleY, rotation, alpha) {
             ctx.transform(scaleX, 0, 0, scaleY, x, y);
             ctx.rotate(rotation);
             ctx.globalAlpha = alpha;
             ctx.drawImage(image, -centerX, -centerY);
         },
-        drawAsLine : function (image, x1, y1, x2, y2, scale, alpha) {
+        drawAsLine(image, x1, y1, x2, y2, scale, alpha) {
             _x = x2 - x1;
             _y = y2 - y1;
             _dist = scale / Math.sqrt(_x * _x + _y * _y); // currently much quicker than Math.hypot on chrome
@@ -1230,7 +1035,7 @@ var EZSprites = (function(){
             ctx.globalAlpha = alpha;
             ctx.drawImage(image, 0, -image.height / 2, 1, image.height);
         },
-        drawWorldAsLine : function (image, x1, y1, x2, y2, scale, alpha) {
+        drawWorldAsLine(image, x1, y1, x2, y2, scale, alpha) {
             _x = x2 - x1;
             _y = y2 - y1;
             _dist = scale / Math.sqrt(_x * _x + _y * _y); // currently much quicker than Math.hypot on chrome
@@ -1239,7 +1044,7 @@ var EZSprites = (function(){
             ctx.globalAlpha = alpha;
             ctx.drawImage(image, 0, -image.height / 2, 1, image.height);
         },
-        drawLocalAsLine : function (image, x1, y1, x2, y2, scale, alpha) {
+        drawLocalAsLine(image, x1, y1, x2, y2, scale, alpha) {
             _x = x2 - x1;
             _y = y2 - y1;
             _dist = scale / Math.sqrt(_x * _x + _y * _y); // currently much quicker than Math.hypot on chrome
@@ -1249,7 +1054,13 @@ var EZSprites = (function(){
         },
     }
     const sprites = {
-        draw : function (image, index, x, y, scale, rotation, alpha) {
+        drawBasic(image, index, x, y) {
+            spr = image.sprites[index];
+            sh = spr.h;
+            sw = spr.w;
+            ctx.drawImage(image, spr.x, spr.y, sw, sh, x, y, sw, sh);
+        },        
+        draw(image, index, x, y, scale, rotation, alpha) {
             spr = image.sprites[index];
             xdx = Math.cos(rotation) * scale;
             xdy = Math.sin(rotation) * scale;
@@ -1264,7 +1075,7 @@ var EZSprites = (function(){
 
             ctx.drawImage(image, spr.x, spr.y, sw, sh, -sw / 2, -sh / 2, sw, sh);
         },
-        drawWorld : function (image, index, x, y, scale, rotation, alpha) {
+        drawWorld(image, index, x, y, scale, rotation, alpha) {
             spr = image.sprites[index];
             sh = spr.h;
             sw = spr.w;
@@ -1281,7 +1092,7 @@ var EZSprites = (function(){
             
             ctx.drawImage(image, spr.x, spr.y, sw, sh, -sw / 2, -sh / 2, sw, sh);
         },
-        drawLocal : function (image, index, x, y, scale, rotation, alpha) {
+        drawLocal(image, index, x, y, scale, rotation, alpha) {
             spr = image.sprites[index];
             sh = spr.h;
             sw = spr.w;
@@ -1295,7 +1106,7 @@ var EZSprites = (function(){
             }
             ctx.drawImage(image, spr.x, spr.y, sw, sh, -sw / 2, -sh / 2, sw, sh);
         },
-        drawTiles : function(image,tiles,x,y,scale,rotation,alpha){
+        drawTiles(image,tiles,x,y,scale,rotation,alpha){
             var index = 0;
             var map = tiles.map;
             var mapLen = map.length;
@@ -1316,7 +1127,7 @@ var EZSprites = (function(){
                 }
             }
         },
-        drawLocalTiles : function(image,tiles,x,y,scale,rotation,alpha){
+        drawLocalTiles(image,tiles,x,y,scale,rotation,alpha){
             var index = 0;
             var map = tiles.map;
             var mapLen = map.length;
@@ -1336,7 +1147,7 @@ var EZSprites = (function(){
                 }
             }
         },
-        drawWorldTiles : function(image,tiles,x,y,scale,rotation,alpha){
+        drawWorldTiles(image,tiles,x,y,scale,rotation,alpha){
             var index = 0;
             var map = tiles.map;
             var mapLen = map.length;
@@ -1357,7 +1168,7 @@ var EZSprites = (function(){
                 }
             }
         },
-        drawCenterScaled : function (image, index, x, y, centerX, centerY, scaleX, scaleY, rotate, alpha) {
+        drawCenterScaled(image, index, x, y, centerX, centerY, scaleX, scaleY, rotate, alpha) {
             spr = image.sprites[index];
             sh = spr.h;
             sw = spr.w;
@@ -1366,7 +1177,7 @@ var EZSprites = (function(){
             ctx.globalAlpha = alpha;
             ctx.drawImage(image, spr.x, spr.y, sw, sh, -centerX, -centerY, sw, sh);
         },
-        drawWorldCenterScaled : function (image, index, x, y, centerX, centerY, scaleX, scaleY, rotate, alpha) {
+        drawWorldCenterScaled(image, index, x, y, centerX, centerY, scaleX, scaleY, rotate, alpha) {
             spr = image.sprites[index];
             sh = spr.h;
             sw = spr.w;
@@ -1376,7 +1187,7 @@ var EZSprites = (function(){
             ctx.globalAlpha = alpha;
             ctx.drawImage(image, spr.x, spr.y, sw, sh, -centerX, -centerY, sw, sh);
         },
-        drawLocalCenterScaled : function (image, index, x, y, centerX, centerY, scaleX, scaleY, rotation, alpha) {
+        drawLocalCenterScaled(image, index, x, y, centerX, centerY, scaleX, scaleY, rotation, alpha) {
             spr = image.sprites[index];
             sh = spr.h;
             sw = spr.w;
@@ -1385,7 +1196,7 @@ var EZSprites = (function(){
             ctx.globalAlpha = alpha;
             ctx.drawImage(image, spr.x, spr.y, sw, sh, -centerX, -centerY, sw, sh);
         },
-        drawAsLine : function (image, index, x1, y1, x2, y2, scale, alpha) {
+        drawAsLine(image, index, x1, y1, x2, y2, scale, alpha) {
             spr = image.sprites[index];
             sh = spr.h;
             sw = spr.w;
@@ -1396,7 +1207,7 @@ var EZSprites = (function(){
             ctx.globalAlpha = alpha;
             ctx.drawImage(image, spr.x, spr.y, sw, sh, 0, -sh / 2, 1, sh);
         },
-        drawWorldAsLine : function (image, index, x1, y1, x2, y2, scale, alpha) {
+        drawWorldAsLine(image, index, x1, y1, x2, y2, scale, alpha) {
             spr = image.sprites[index];
             sh = spr.h;
             sw = spr.w;
@@ -1408,7 +1219,7 @@ var EZSprites = (function(){
             ctx.globalAlpha = alpha;
             ctx.drawImage(image, spr.x, spr.y, sw, sh, 0, -sh / 2, 1, sh);
         },
-        drawLocalAsLine : function (image, index, x1, y1, x2, y2, scale, alpha) {
+        drawLocalAsLine(image, index, x1, y1, x2, y2, scale, alpha) {
             spr = image.sprites[index];
             sh = spr.h;
             sw = spr.w;
@@ -1419,7 +1230,7 @@ var EZSprites = (function(){
             ctx.globalAlpha = alpha;
             ctx.drawImage(image, spr.x, spr.y, sw, sh, 0, -sh / 2, 1, sh);
         },
-        drawAsLineRep : function (image, index, x1, y1, x2, y2, scale, alpha) {
+        drawAsLineRep(image, index, x1, y1, x2, y2, scale, alpha) {
             var i, len;
             if(Array.isArray(index)){
                 spr = image.sprites[index[0]];
@@ -1459,7 +1270,7 @@ var EZSprites = (function(){
                 }
             }
         },
-        drawWorldAsLineRep : function (image, index, x1, y1, x2, y2, scale, alpha) {
+        drawWorldAsLineRep(image, index, x1, y1, x2, y2, scale, alpha) {
             var i, len;
             if(Array.isArray(index)){
                 spr = image.sprites[index[0]];
@@ -1500,7 +1311,7 @@ var EZSprites = (function(){
                 }
             }
         },
-        drawLocalAsLineRep : function (image, index, x1, y1, x2, y2, scale, alpha) {
+        drawLocalAsLineRep(image, index, x1, y1, x2, y2, scale, alpha) {
             var i, len;
             if(Array.isArray(index)){
                 spr = image.sprites[index[0]];
@@ -1540,7 +1351,7 @@ var EZSprites = (function(){
                 }
             }
         },
-        locateSprites : function(image,options){
+        locateSprites(image,options){
             var w,h,c,ct,size,imgData,index,extent,sprites,x,y,spr;
             function findSprite(){
                 while(index < size && imgData[index] === 0){
@@ -1596,7 +1407,42 @@ var EZSprites = (function(){
             image.sprites = sprites;
             return image;
         },
-        gridSprites : function(image,xCount,yCount){
+        // addSprite adds a sprite of height and width by finding the next free area on the image that it will fit in
+        // There will be a 1 pixel boarder around the sprite
+        // The image will have a sprites array added if it does not exist
+        // returns the sprite index of the new sprite
+        // returns false is no room for sprite
+        addSprite(image,width,height){ 
+            const findEmptyArea = (w,h) => {
+                for(var j = 0; j < image.height - h; j ++){
+                    for(var i = 0; i < image.width - w; i++){
+                        var found = true;
+                        for(var s of sprites){
+                            if(!(i + w < s.x - 1 || i > s.x + s.w + 1 || j + h < s.y - 1 || j > s.y + s.h + 1)){
+                                i += s.w + 1;
+                                found = false;
+                                break;
+                            }
+                        }
+                        if(found){
+                            x = i;
+                            y = j;
+                            return true;
+                        }
+                    }
+                }
+                return false;                
+            }
+            var x,y;
+            var sprites = image.sprites;
+            if(sprites === undefined){ image.sprites = sprites = [] }
+            if(findEmptyArea(width,height)){
+                sprites.push({x, y, w : width, h : height});
+                return sprites.length - 1;
+            }
+            return false;        
+        },
+        gridSprites(image,xCount,yCount){
             var warn = false;
             var sprites = image.sprites;
             if(sprites === undefined){
@@ -1628,7 +1474,7 @@ var EZSprites = (function(){
             image.sprites = sprites;
             return image;
         },
-        array2SpriteList : function(array){
+        array2SpriteList(array){
             var i,j,s,sprites;
             sprites = [];
             j=i = 0;
@@ -1648,7 +1494,7 @@ var EZSprites = (function(){
             }
             return sprites;
         },
-        decodeGrooverSpriteImage : function(image){ // Only reads Groover sprites encoder V2 formats
+        decodeGrooverSpriteImage(image){ // Only reads Groover sprites encoder V2 formats
             var data,lines,pos,x,y,groupCount,groupIndexs,w,h,c,ct;
             function readByte(){
                 if((pos % 4) === 3){ pos += 1 };// skip alpha
@@ -1755,9 +1601,40 @@ var EZSprites = (function(){
         context.transformMoz = null; // prevent misuse
         FX.filterMoz = null;         // prevent misuse
     }
-    correctForContext();
-        
-    
+    correctForContext();        
+    const helpers = {
+        canvas(width, height) {  // create a blank image (canvas)
+            var c = document.createElement("canvas");
+            c.width = width;
+            c.height = height;
+            return c;
+        },
+        createImage(width, height) {
+            var i = this.canvas(width, height);
+            i.ctx = i.getContext("2d");
+            return i;
+        },
+        createDrawableImage(width, height) { return this.createImage(width, height) },
+        loadImage(url, cb) { // cb is calback. Check first argument for status
+            var i = new Image();
+            i.src = url;
+            i.addEventListener('load', cb);
+            i.addEventListener('error', cb);
+            return i;
+        },
+        image2Canvas(img) {
+            var i = this.canvas(img.width, img.height);
+            i.ctx = i.getContext("2d");
+            i.ctx.drawImage(img, 0, 0);
+            return i;
+        },
+        copyImage(img){ // just a named stub
+            return this.image2Canvas(img);
+        },
+        makeDrawable(img){ // just a named stub
+            return this.image2Canvas(img);
+        },
+    }        
     const API = {
         resetAll : resetAll,
         sprites : Object.freeze(sprites),
@@ -1767,6 +1644,7 @@ var EZSprites = (function(){
         context : Object.freeze(context),
         world : Object.freeze(globalTransform),
         links : Object.freeze(links),
+        helpers : Object.freeze(helpers),
     }
     resetAll();
     return API;        
